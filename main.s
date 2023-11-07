@@ -28,7 +28,15 @@ test:
 
 delay:
 	decfsz 0x20, F, A
+	call delay2 
 	goto $-1
 	return
+	
+delay2:
+	movlw 0x10
+	movwf 0x30, A
+	decfsz 0x30, F, A
+	goto $-1
+	return    
 	
 	end	main
