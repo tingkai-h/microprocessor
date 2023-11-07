@@ -38,5 +38,4 @@ loop:
 	
 	goto	0
 
-	
 	end	main
