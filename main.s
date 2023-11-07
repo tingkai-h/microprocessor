@@ -23,13 +23,13 @@ test:
 	goto 	0x0		    ; Re-run program from start
 
 delay:
-    movlw 0x00
+	movlw 0x00
 
 Dloop:
-    decf 0x11, f, A
-    subwfb 0x10, f, A
-    bc dloop
-    return
+	decf 0x11, f, A
+	subwfb 0x10, f, A
+	bc dloop
+	return
    
 	
 	end	main
