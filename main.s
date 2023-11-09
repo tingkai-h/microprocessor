@@ -19,7 +19,7 @@ test:
 	movwf	0x06, A	    ; Test for end of loop condition
 	movlw 	0x63
 	cpfsgt 	0x06, A
-	movlw 0x03
+	movlw 0xFF
 	movwf 0x20, A
 	
 	call	delay
@@ -32,7 +32,7 @@ delay:
 	return
 
 delay2:
-	movlw 0x03
+	movlw 0xFF
 	movwf 0x30, A
 	decfsz 0x30, F, A
 	goto $-1
