@@ -18,6 +18,7 @@ loop:
 	movf	0x06, W
 	call	SPI_MasterTransmit
 	incf 	0x06, W, A
+	
 test:
 	movwf	0x06, A	    ; Test for end of loop condition
 	movlw 	0x63
