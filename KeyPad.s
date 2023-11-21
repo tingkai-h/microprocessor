@@ -157,6 +157,6 @@ test_F:
     retlw 0xF
     
 err:    
-    return
+    retlw 0xF0
 
     
