@@ -16,6 +16,7 @@ KeyPad_Setup:
     bsf REPU
     movlb 0
     clrf LATE
+    clrf TRISD
 
 KeyPad_read:
     movlw 0x0F
@@ -31,13 +32,15 @@ KeyPad_read:
     movwf 0x20
     call delay
     movff PORTE, high_bits
-    iorwf low_bits, W
-    movwf keyval
-    iorwf high_bits, W
-    addwf keyval
+    movf high_bits, W, A
+    iorwf low_bits, W, A
+    movwf keyval,A
     movlw 0x0
     movwf PORTD
     call test_none
+    
+    movwf PORTD
+    return
 
 delay: 
     decfsz 0x20, F, A
@@ -58,10 +61,10 @@ test_none:
     retlw 0xFF
     
 test_0:
-    movlw 0xEB
+    movlw 0xBE
     cpfseq keyval, A
     bra test_1
-    retlw 0x10
+    retlw 0x0
     
 test_1:
     movlw 0x77
@@ -70,19 +73,19 @@ test_1:
     retlw 0x1
 
 test_2:
-    movlw 0x7B
+    movlw 0xB7
     cpfseq keyval, A
     bra test_3
     retlw 0x2
 
 test_3:
-    movlw 0x7D
+    movlw 0xD7
     cpfseq keyval, A
     bra test_4
     retlw 0x3
 
 test_4:
-    movlw 0xB7
+    movlw 0x7B
     cpfseq keyval, A
     bra test_5
     retlw 0x4
@@ -94,19 +97,19 @@ test_5:
     retlw 0x5
     
 test_6:
-    movlw 0xBD
+    movlw 0xDB
     cpfseq keyval, A
     bra test_7
     retlw 0x6
     
 test_7:
-    movlw 0xD7
+    movlw 0x7D
     cpfseq keyval, A
     bra test_8
     retlw 0x7
     
 test_8:
-    movlw 0xDB
+    movlw 0xBD
     cpfseq keyval, A
     bra test_9
     retlw 0x8
@@ -118,13 +121,13 @@ test_9:
     retlw 0x9
     
 test_A:
-    movlw 0xE7
+    movlw 0x7E
     cpfseq keyval, A
     bra test_B
     retlw 0xA
     
 test_B:
-    movlw 0xED
+    movlw 0xDE
     cpfseq keyval, A
     bra test_C
     retlw 0xB
@@ -136,19 +139,19 @@ test_C:
     retlw 0xC
     
 test_D:
-    movlw 0xDE
+    movlw 0xED
     cpfseq keyval, A
     bra test_E
     retlw 0xD
     
 test_E:
-    movlw 0xBE
+    movlw 0xEB
     cpfseq keyval, A
     bra test_F
     retlw 0xE
     
 test_F:
-    movlw 0x7E
+    movlw 0xE7
     cpfseq keyval, A
     bra err
     retlw 0xF

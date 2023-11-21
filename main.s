@@ -46,8 +46,8 @@ loop: 	tblrd*+			; one byte from PM to TABLAT, increment TBLPRT
 	decfsz	counter, A		; count down to zero
 	bra	loop		; keep going until finished
 	
-	call	KeyPad_read
-
+keypad:	call	KeyPad_read
+	bra keypad
 	
 	movlw	myTable_l	; output message to UART
 	lfsr	2, myArray
