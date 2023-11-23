@@ -58,105 +58,105 @@ test_none:
     movlw 0xFF
     cpfseq keyval, A
     bra test_0
-    retlw 0xFF
+    retlw 0x0
     
 test_0:
     movlw 0xBE
     cpfseq keyval, A
     bra test_1
-    retlw 0x0
+    retlw '0'
     
 test_1:
     movlw 0x77
     cpfseq keyval, A
     bra test_2
-    retlw 0x1
+    retlw '1'
 
 test_2:
     movlw 0xB7
     cpfseq keyval, A
     bra test_3
-    retlw 0x2
+    retlw '2'
 
 test_3:
     movlw 0xD7
     cpfseq keyval, A
     bra test_4
-    retlw 0x3
+    retlw '3'
 
 test_4:
     movlw 0x7B
     cpfseq keyval, A
     bra test_5
-    retlw 0x4
+    retlw '4'
    
 test_5:
     movlw 0xBB
     cpfseq keyval, A
     bra test_6
-    retlw 0x5
+    retlw '5'
     
 test_6:
     movlw 0xDB
     cpfseq keyval, A
     bra test_7
-    retlw 0x6
+    retlw '6'
     
 test_7:
     movlw 0x7D
     cpfseq keyval, A
     bra test_8
-    retlw 0x7
+    retlw '7'
     
 test_8:
     movlw 0xBD
     cpfseq keyval, A
     bra test_9
-    retlw 0x8
+    retlw '8'
     
 test_9:
     movlw 0xDD
     cpfseq keyval, A
     bra test_A
-    retlw 0x9
+    retlw '9'
     
 test_A:
     movlw 0x7E
     cpfseq keyval, A
     bra test_B
-    retlw 0xA
+    retlw 'A'
     
 test_B:
     movlw 0xDE
     cpfseq keyval, A
     bra test_C
-    retlw 0xB
+    retlw 'B'
     
 test_C:
     movlw 0xEE
     cpfseq keyval, A
     bra test_D
-    retlw 0xC
+    retlw 'C'
     
 test_D:
     movlw 0xED
     cpfseq keyval, A
     bra test_E
-    retlw 0xD
+    retlw 'D'
     
 test_E:
     movlw 0xEB
     cpfseq keyval, A
     bra test_F
-    retlw 0xE
+    retlw 'E'
     
 test_F:
     movlw 0xE7
     cpfseq keyval, A
     bra err
-    retlw 0xF
+    retlw 'F'
     
 err:    
-    retlw 0xF0
+    retlw 0x0
 
     
