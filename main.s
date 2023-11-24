@@ -54,6 +54,8 @@ setup:	bcf	CFGS	; point to Flash program memory
 keypad:	call	KeyPad_read
 	cpfseq	0x50, A
 	goto TestVal
+	movlw	0xFF
+	movwf	0x80
 	bra keypad
     
 	;bra keypad
@@ -63,7 +65,7 @@ keypad:	call	KeyPad_read
 TestVal:
 	cpfseq	0x80
 	goto DisplayVal
-	movlw 0x0
+		
 	bra keypad
 	
 DisplayVal:
@@ -74,7 +76,7 @@ DisplayVal:
 	;addlw	0xff		; don't send the final carriage return to LCD
 	;lfsr	2, myArray
 	call	LCD_Send_Byte_D
-	;call delay
+		
 	
 	goto keypad
 	
