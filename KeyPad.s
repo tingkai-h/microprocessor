@@ -17,6 +17,7 @@ KeyPad_Setup:
     movlb 0
     clrf LATE
     clrf TRISD
+    return
 
 KeyPad_read:
     movlw 0x0F

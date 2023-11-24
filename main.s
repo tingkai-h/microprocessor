@@ -11,45 +11,51 @@ delay_count:ds 1    ; reserve one byte for counter in the delay routine
 psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
 myArray:    ds 0x80 ; reserve 128 bytes for message data
 
-;psect	data    
-	; ******* myTable, data in programme memory, and its length *****
-;myTable:
-;	db	'a','b','c','d','e','f ','g','h','i','j','k','l',0x0a
-;					; message, plus carriage return
-;	myTable_l   EQU	13	; length of data
-;	align	2
     
 psect	code, abs	
 rst: 	org 0x0
  	goto	setup
 
 	; ******* Programme FLASH read Setup Code ***********************
-setup:	bcf	CFGS	; point to Flash program memory  
-	bsf	EEPGD 	; access Flash program memory
-	call	UART_Setup	; setup UART
-	call	LCD_Setup	; setup LCD
-	call	KeyPad_Setup	; setup KeyPad
+setup:	MOVLW 0x00;
+	MOVWF EEADRH ; Upper bits of Data Memory Address to write
+	MOVLW 0x00 ;
+	MOVWF EEADR ; Lower bits of Data Memory Address to write
+	MOVLW '1'
+	MOVWF EEDATA ; Data Memory Value to write
+	BCF  EEPGD ; Point to DATA memory EECON1,
+	BCF  CFGS ; Access EEPROM ; EECON1,
+	BCF	WRERR
+	BSF  WREN ; Enable writes ; EECON1,
+	
+	BCF  GIE ; Disable Interrupts , INTCON, 7
+	MOVLW 0x55 ;
+	MOVWF EECON2 ; Write 55h
+	MOVLW 0xAA ;
+	MOVWF EECON2 ; Write 0AAh
+	BSF  WR ; Set WR bit to begin write EECON1,
+	
+testdone:
+	BTFSC  WR ; Wait for write to complete GOTO $-2 EECON1,
+	bra	testdone
+	BSF  GIE ; Enable Interrupts , INTCON, 
+	; User code execution
+	BCF  WREN ; Disable writes on write complete (EEIF set) EECON1,
+	
+	bcf         CFGS     ; point to Flash program memory  
+        bsf         EEPGD ; access Flash program memory
+        call        UART_Setup      ; setup UART
+        call        LCD_Setup         ; setup LCD
+        call        KeyPad_Setup   ; setup KeyPad
+
 	movlw 0x0
 	movwf 0x50
 	movlw 0xFF
 	movwf 0x60
 	movwf 0x80
 	goto	keypad
-	
-	; ******* Main programme ****************************************
-;start: 	lfsr	0, myArray	; Load FSR0 with address in RAM	
-;	movlw	low highword(myTable)	; address of data in PM
-;	movwf	TBLPTRU, A		; load upper bits to TBLPTRU
-;	movlw	high(myTable)	; address of data in PM
-;	movwf	TBLPTRH, A		; load high byte to TBLPTRH
-;	movlw	low(myTable)	; address of data in PM
-;	movwf	TBLPTRL, A		; load low byte to TBLPTRL
-;	movlw	myTable_l	; bytes to read
-;	movwf 	counter, A		; our counter register
-;loop: 	tblrd*+			; one byte from PM to TABLAT, increment TBLPRT
-;	movff	TABLAT, POSTINC0; move data from TABLAT to (FSR0), inc FSR0	
-;	decfsz	counter, A		; count down to zero
-;	bra	loop		; keep going until finished
+
+
 	
 keypad:	call	KeyPad_read
 	cpfseq	0x50, A
