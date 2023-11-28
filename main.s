@@ -4,6 +4,9 @@ extrn	UART_Setup, UART_Transmit_Byte  ; external subroutines
 extrn	LCD_Setup, LCD_Send_Byte_D
 extrn	KeyPad_Setup, KeyPad_read
 	
+;psect	edata
+;    db  0,1,2,3
+
 psect	udata_acs   ; reserve data space in access ram
 counter:    ds 1    ; reserve one byte for a counter variable
 delay_count:ds 1    ; reserve one byte for counter in the delay routine
@@ -47,11 +50,12 @@ eewrite :
 	MOVWF EECON2 ; Write 0AAh
 	BSF  WR ; Set WR bit to begin write EECON1,
 	BTFSC  WR ; Wait for write to complete GOTO $-2 EECON1,
+	GOTO $-2
 	; test code
 	movlw 0x02
 	movwf LATF, A
 	;check interact flag
-check :	btfss PIR6, W4
+check :	btfss PIR6, 4
 	bra check
 	;BSF  GIE ; Enable Interrupts , INTCON, 
 	bcf PIR6, 4  
@@ -62,7 +66,16 @@ eeread :
 	;read procedure
 	MOVLW 0x00;
 	MOVWF EEADRH ; Upper bits of Data Memory Address to write
-	MOVLW 0x01 ;
+	MOVLW 0x02 ;
+	MOVWF EEADR ; Lower bits of Data Memory Address to write
+	BCF  EEPGD ; Point to DATA memory EECON1,
+	BCF  CFGS ; Access EEPROM ; EECON1,
+	BSF  RD
+	MOVF EEDATA, w ; Data Memory Value to write
+	movwf LATF, a	
+	MOVLW 0x00;
+	MOVWF EEADRH ; Upper bits of Data Memory Address to write
+	MOVLW 0x02 ;
 	MOVWF EEADR ; Lower bits of Data Memory Address to write
 	BCF  EEPGD ; Point to DATA memory EECON1,
 	BCF  CFGS ; Access EEPROM ; EECON1,
