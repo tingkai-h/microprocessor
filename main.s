@@ -51,7 +51,7 @@ eewrite :
 	movlw 0x02
 	movwf LATF, A
 	;check interact flag
-check :	btfss PIR6, 4
+check :	btfss PIR6, W4
 	bra check
 	;BSF  GIE ; Enable Interrupts , INTCON, 
 	bcf PIR6, 4  
