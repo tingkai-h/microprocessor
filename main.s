@@ -15,17 +15,29 @@ myArray:    ds 0x80 ; reserve 128 bytes for message data
 psect	code, abs	
 rst: 	org 0x0
  	goto	setup
-
+	
+int_hi : org 00008
+	goto int_ee
+	
+	
+	org	0x100	
 	; ******* Programme FLASH read Setup Code ***********************
-setup:	MOVLW 0x00;
+setup:  
+	clrf TRISF, A
+	movlw 0xff
+	movwf LATF, A
+	bcf PIR6, 4  
+	;bra eeread
+eewrite :
+	MOVLW 0x00;
 	MOVWF EEADRH ; Upper bits of Data Memory Address to write
-	MOVLW 0x00 ;
+	MOVLW 0x01 ;
 	MOVWF EEADR ; Lower bits of Data Memory Address to write
-	MOVLW '1'
+	MOVLW 0xaa
 	MOVWF EEDATA ; Data Memory Value to write
 	BCF  EEPGD ; Point to DATA memory EECON1,
 	BCF  CFGS ; Access EEPROM ; EECON1,
-	BCF	WRERR
+	clrf EECON1
 	BSF  WREN ; Enable writes ; EECON1,
 	
 	BCF  GIE ; Disable Interrupts , INTCON, 7
@@ -34,11 +46,30 @@ setup:	MOVLW 0x00;
 	MOVLW 0xAA ;
 	MOVWF EECON2 ; Write 0AAh
 	BSF  WR ; Set WR bit to begin write EECON1,
-	
-testdone:
 	BTFSC  WR ; Wait for write to complete GOTO $-2 EECON1,
-	bra	testdone
-	BSF  GIE ; Enable Interrupts , INTCON, 
+	; test code
+	movlw 0x02
+	movwf LATF, A
+	;check interact flag
+check :	btfss PIR6, 4
+	bra check
+	;BSF  GIE ; Enable Interrupts , INTCON, 
+	bcf PIR6, 4  
+	movlw 0x00
+	movwf LATF, A
+
+eeread :	
+	;read procedure
+	MOVLW 0x00;
+	MOVWF EEADRH ; Upper bits of Data Memory Address to write
+	MOVLW 0x01 ;
+	MOVWF EEADR ; Lower bits of Data Memory Address to write
+	BCF  EEPGD ; Point to DATA memory EECON1,
+	BCF  CFGS ; Access EEPROM ; EECON1,
+	BSF  RD
+	MOVF EEDATA, w ; Data Memory Value to write
+	movwf LATF, a	
+	bra $
 	; User code execution
 	BCF  WREN ; Disable writes on write complete (EEIF set) EECON1,
 	
@@ -99,6 +130,13 @@ delay2:	movlw 0xFF
 	decfsz 0x70, F, A
 	goto $-1
 	bra delay
+
+int_ee :
+	bcf PIR6, 4
+	movlw 0xf0
+	
+	movwf LATF
+	retfie f
 	
 
 	end	rst
