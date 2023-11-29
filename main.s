@@ -4,8 +4,8 @@ extrn	UART_Setup, UART_Transmit_Byte  ; external subroutines
 extrn	LCD_Setup, LCD_Send_Byte_D
 extrn	KeyPad_Setup, KeyPad_read
 	
-;psect	edata
-;    db  0,1,2,3
+psect	edata
+    db  '0','0','0','0'
 
 psect	udata_acs   ; reserve data space in access ram
 counter:    ds 1    ; reserve one byte for a counter variable
@@ -30,7 +30,8 @@ setup:
 	movlw 0xff
 	movwf LATF, A
 	bcf PIR6, 4  
-	;bra eeread
+	
+	bra eeread
 eewrite :
 	MOVLW 0x00;
 	MOVWF EEADRH ; Upper bits of Data Memory Address to write
@@ -55,7 +56,7 @@ eewrite :
 	movlw 0x02
 	movwf LATF, A
 	;check interact flag
-check :	btfss PIR6, 4
+check:	btfss PIR6, 4
 	bra check
 	;BSF  GIE ; Enable Interrupts , INTCON, 
 	bcf PIR6, 4  
@@ -82,7 +83,7 @@ eeread :
 	BSF  RD
 	MOVF EEDATA, w ; Data Memory Value to write
 	movwf LATF, a	
-	bra $
+	;bra $
 	; User code execution
 	BCF  WREN ; Disable writes on write complete (EEIF set) EECON1,
 	
@@ -94,9 +95,13 @@ eeread :
 
 	movlw 0x0
 	movwf 0x50
+	movlw 0x4 ;maximum digits in pin (4)
+	movwf 0x0B0 ;storing maximum 
 	movlw 0xFF
 	movwf 0x60
 	movwf 0x80
+	movlw 0x0A0
+	movwf FSR0
 	goto	keypad
 
 
@@ -120,6 +125,8 @@ TestVal:
 	
 DisplayVal:
 	movwf	0x80
+	goto StoreVal
+	movlw	'*'
 	call	UART_Transmit_Byte
 	
 	;movlw	myTable_l	; output message to LCD
@@ -129,6 +136,17 @@ DisplayVal:
 		
 	
 	goto keypad
+
+StoreVal:
+	movwf INDF0
+	incf FSR0, 1
+	decfsz 0xB0
+	return
+	goto TestPin
+	
+TestPin:
+	
+	return
 	
 	
 	;goto	$		; goto current line in code
