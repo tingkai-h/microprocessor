@@ -30,7 +30,19 @@ setup:
 	movlw 0xff
 	movwf LATF, A
 	bcf PIR6, 4  
-	
+	call        UART_Setup      ; setup UART
+        call        LCD_Setup         ; setup LCD
+        call        KeyPad_Setup   ; setup KeyPad
+
+	movlw 0x0
+	movwf 0x50
+	movlw 0x4 ;maximum digits in pin (4)
+	movwf 0x0B0 ;storing maximum 
+	movlw 0xFF
+	movwf 0x60
+	movwf 0x80
+	movlw 0x0A0
+	movwf FSR0
 	bra eeread
 eewrite :
 	MOVLW 0x00;
@@ -74,34 +86,14 @@ eeread :
 	BSF  RD
 	MOVF EEDATA, w ; Data Memory Value to write
 	movwf LATF, a	
-	MOVLW 0x00;
-	MOVWF EEADRH ; Upper bits of Data Memory Address to write
-	MOVLW 0x02 ;
-	MOVWF EEADR ; Lower bits of Data Memory Address to write
-	BCF  EEPGD ; Point to DATA memory EECON1,
-	BCF  CFGS ; Access EEPROM ; EECON1,
-	BSF  RD
-	MOVF EEDATA, w ; Data Memory Value to write
-	movwf LATF, a	
+	
 	;bra $
 	; User code execution
 	BCF  WREN ; Disable writes on write complete (EEIF set) EECON1,
 	
 	bcf         CFGS     ; point to Flash program memory  
         bsf         EEPGD ; access Flash program memory
-        call        UART_Setup      ; setup UART
-        call        LCD_Setup         ; setup LCD
-        call        KeyPad_Setup   ; setup KeyPad
-
-	movlw 0x0
-	movwf 0x50
-	movlw 0x4 ;maximum digits in pin (4)
-	movwf 0x0B0 ;storing maximum 
-	movlw 0xFF
-	movwf 0x60
-	movwf 0x80
-	movlw 0x0A0
-	movwf FSR0
+        
 	goto	keypad
 
 
@@ -125,7 +117,9 @@ TestVal:
 	
 DisplayVal:
 	movwf	0x80
-	goto StoreVal
+	call StoreVal
+	
+DisplayAsterisk:	
 	movlw	'*'
 	call	UART_Transmit_Byte
 	
@@ -141,7 +135,7 @@ StoreVal:
 	movwf INDF0
 	incf FSR0, 1
 	decfsz 0xB0
-	return
+	goto DisplayAsterisk
 	goto TestPin
 	
 TestPin:
