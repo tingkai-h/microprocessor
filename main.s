@@ -5,7 +5,7 @@ extrn	LCD_Setup, LCD_Send_Byte_D
 extrn	KeyPad_Setup, KeyPad_read
 	
 psect	edata
-    db  '0','0','0','0'
+    db  '1','2','3','4'
 
 psect	udata_acs   ; reserve data space in access ram
 counter:    ds 1    ; reserve one byte for a counter variable
@@ -36,6 +36,7 @@ setup:
 
 	movlw 0x0
 	movwf 0x50
+	movwf 0x0D0 ;tracking number of eeprom digits read
 	movlw 0x4 ;maximum digits in pin (4)
 	movwf 0x0B0 ;storing maximum 
 	movlw 0xFF
@@ -43,7 +44,8 @@ setup:
 	movwf 0x80
 	movlw 0x0A0
 	movwf FSR0
-	bra eeread
+	
+	bra keypad
 eewrite :
 	MOVLW 0x00;
 	MOVWF EEADRH ; Upper bits of Data Memory Address to write
@@ -75,7 +77,7 @@ check:	btfss PIR6, 4
 	movlw 0x00
 	movwf LATF, A
 
-eeread :	
+eereadxxx :	
 	;read procedure
 	MOVLW 0x00;
 	MOVWF EEADRH ; Upper bits of Data Memory Address to write
@@ -136,12 +138,33 @@ StoreVal:
 	incf FSR0, 1
 	decfsz 0xB0
 	goto DisplayAsterisk
-	goto TestPin
+	movlw 0x4 ;maximum digits in pin (4)
+	movwf 0x0B0 ;storing maximum
+	goto eeread
 	
-TestPin:
-	
+eeread: movlw 0x0A0
+	movwf FSR0
+	MOVLW 0x00;
+	MOVWF EEADRH ; Upper bits of Data Memory Address to write
+	MOVF 0x0D0, w
+	MOVWF EEADR ; Lower bits of Data Memory Address to write
+	BCF  EEPGD ; Point to DATA memory EECON1,
+	BCF  CFGS ; Access EEPROM ; EECON1,
+	BSF  RD
+	MOVF EEDATA, w ; Data Memory Value to write
+	cpfseq INDF0, A
+	goto incorrect_pin
+	incf FSR0, 1
+	incf 0x0D0, 1
+	decfsz 0xB0
+	goto eeread
+	goto correct_pin
+
+incorrect_pin:
 	return
-	
+
+correct_pin:
+	return
 	
 	;goto	$		; goto current line in code
 
