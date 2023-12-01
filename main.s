@@ -1,7 +1,7 @@
 #include <xc.inc>
 
-extrn	UART_Setup, UART_Transmit_Byte  ; external subroutines
-extrn	LCD_Setup, LCD_Send_Byte_D
+extrn	UART_Setup, UART_Transmit_Byte, UART_Transmit_Message  ; external subroutines
+extrn	LCD_Setup, LCD_Send_Byte_D, LCD_Write_Message
 extrn	KeyPad_Setup, KeyPad_read
 	
 
@@ -46,11 +46,19 @@ setup:  bcf CFGS ; point to Flash program memory
 	goto start
 	
 pin:	db  '1','2','3','4'
-	myArray	EQU 0x400
+	myPin	EQU 0x400
 	counter	EQU 0x10
 	align 2
+
+correct_message:
+	db  'C','o','r','r','e','c','t'
+	myCorrectMessage EQU 0x500
+
+incorrect_message:
+	db  'I','n','c','o','r','r','e','c','t'
+	myIncorrectMessage EQU 0x600
 	
-start:	lfsr	0, myArray
+start:	lfsr	0, myPin
 	movlw	low highword(pin)
 	movwf	TBLPTRU, A
 	movlw	high(pin)
@@ -138,13 +146,30 @@ incorrect_pin:
 	return
 
 correct_pin:
-	movlw	'Y'
-	call	UART_Transmit_Byte
+	lfsr	0, myCorrectMessage
+	movlw	low highword(correct_message)
+	movwf	TBLPTRU, A
+	movlw	high(correct_message)
+	movwf	TBLPTRH
+	movlw	low(correct_message)
+	movwf	TBLPTRL, A
+	movlw	7
+	movwf	counter, A
 	
-	;movlw	myTable_l	; output message to LCD
-	;addlw	0xff		; don't send the final carriage return to LCD
-	;lfsr	2, myArray
-	call	LCD_Send_Byte_D
+correct_loop:
+	tblrd*+
+	movff	TABLAT, POSTINC0
+	decfsz counter, A
+	bra correct_loop
+	
+	movlw	correct_message
+	lfsr	2,myCorrectMessage
+	call	UART_Transmit_Message
+	
+	movlw	correct_message
+	addlw	0xff		; don't send the final carriage return to LCD
+	lfsr	2, myCorrectMessage
+	call	LCD_Write_Message
 		
 	
 	goto keypad
