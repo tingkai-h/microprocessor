@@ -133,27 +133,56 @@ pincheck:
 
 
 incorrect_pin:
-	movlw	'N'
-	call	UART_Transmit_Byte
+	call LCD_Setup
+	lfsr	0, myIncorrectMessage
+	movlw	low highword(incorrect_message)
+	movwf	TBLPTRU, A
+ 	movlw	high(incorrect_message)
+	movwf	TBLPTRH
+	movlw	low(incorrect_message)
+	movwf	TBLPTRL, A
+	movlw	9
+	movwf	counter, A
+	;movlw	'N'
+	;call	UART_Transmit_Byte
 	
-	;movlw	myTable_l	; output message to LCD
-	;addlw	0xff		; don't send the final carriage return to LCD
-	;lfsr	2, myArray
-	call	LCD_Send_Byte_D
+	;;movlw	myTable_l	; output message to LCD
+	;;addlw	0xff		; don't send the final carriage return to LCD
+	;;lfsr	2, myArray
+	;call	LCD_Send_Byte_D
+		
+	
+	;goto keypad
+	;return
+incorrect_loop:
+	tblrd*+
+	movff	TABLAT, POSTINC0
+	decfsz counter, A
+	bra incorrect_loop
+	
+	movlw	incorrect_message
+	lfsr	2,myIncorrectMessage
+	call	UART_Transmit_Message
+	
+	movlw	incorrect_message
+	addlw	0xff		; don't send the final carriage return to LCD
+	lfsr	2, myIncorrectMessage
+	call	LCD_Write_Message
 		
 	
 	goto keypad
 	return
-
+	
 correct_pin:
+	call LCD_Setup
 	lfsr	0, myCorrectMessage
-	movlw	low highword(correct_message)
+ 	movlw	low highword(correct_message)
 	movwf	TBLPTRU, A
 	movlw	high(correct_message)
 	movwf	TBLPTRH
 	movlw	low(correct_message)
 	movwf	TBLPTRL, A
-	movlw	7
+	movlw	28
 	movwf	counter, A
 	
 correct_loop:
