@@ -46,60 +46,7 @@ setup:
 	movwf FSR0
 	
 	bra keypad
-eewrite :
-	MOVLW 0x00;
-	MOVWF EEADRH ; Upper bits of Data Memory Address to write
-	MOVLW 0x01 ;
-	MOVWF EEADR ; Lower bits of Data Memory Address to write
-	MOVLW 0xaa
-	MOVWF EEDATA ; Data Memory Value to write
-	BCF  EEPGD ; Point to DATA memory EECON1,
-	BCF  CFGS ; Access EEPROM ; EECON1,
-	clrf EECON1
-	BSF  WREN ; Enable writes ; EECON1,
-	
-	BCF  GIE ; Disable Interrupts , INTCON, 7
-	MOVLW 0x55 ;
-	MOVWF EECON2 ; Write 55h
-	MOVLW 0xAA ;
-	MOVWF EECON2 ; Write 0AAh
-	BSF  WR ; Set WR bit to begin write EECON1,
-	BTFSC  WR ; Wait for write to complete GOTO $-2 EECON1,
-	GOTO $-2
-	; test code
-	movlw 0x02
-	movwf LATF, A
-	;check interact flag
-check:	btfss PIR6, 4
-	bra check
-	;BSF  GIE ; Enable Interrupts , INTCON, 
-	bcf PIR6, 4  
-	movlw 0x00
-	movwf LATF, A
 
-eereadxxx :	
-	;read procedure
-	MOVLW 0x00;
-	MOVWF EEADRH ; Upper bits of Data Memory Address to write
-	MOVLW 0x02 ;
-	MOVWF EEADR ; Lower bits of Data Memory Address to write
-	BCF  EEPGD ; Point to DATA memory EECON1,
-	BCF  CFGS ; Access EEPROM ; EECON1,
-	BSF  RD
-	MOVF EEDATA, w ; Data Memory Value to write
-	movwf LATF, a	
-	
-	;bra $
-	; User code execution
-	BCF  WREN ; Disable writes on write complete (EEIF set) EECON1,
-	
-	bcf         CFGS     ; point to Flash program memory  
-        bsf         EEPGD ; access Flash program memory
-        
-	goto	keypad
-
-
-	
 keypad:	call	KeyPad_read
 	cpfseq	0x50, A
 	goto TestVal
@@ -138,11 +85,12 @@ StoreVal:
 	incf FSR0, 1
 	decfsz 0xB0
 	goto DisplayAsterisk
-	movlw 0x4 ;maximum digits in pin (4)
-	movwf 0x0B0 ;storing maximum
+	movlw 0x4
+	movwf 0xB0
 	goto eeread
 	
-eeread: movlw 0x0A0
+eeread: 
+	movlw 0x0A0
 	movwf FSR0
 	MOVLW 0x00;
 	MOVWF EEADRH ; Upper bits of Data Memory Address to write
@@ -151,8 +99,10 @@ eeread: movlw 0x0A0
 	BCF  EEPGD ; Point to DATA memory EECON1,
 	BCF  CFGS ; Access EEPROM ; EECON1,
 	BSF  RD
-	MOVF EEDATA, w ; Data Memory Value to write
-	cpfseq INDF0, A
+	MOVF EEDATA, W; Data Memory Value to write
+	movwf 0xE0
+	movf INDF0, w
+	cpfseq 0xE0, A
 	goto incorrect_pin
 	incf FSR0, 1
 	incf 0x0D0, 1
@@ -161,9 +111,29 @@ eeread: movlw 0x0A0
 	goto correct_pin
 
 incorrect_pin:
+	movlw	'N'
+	call	UART_Transmit_Byte
+	
+	;movlw	myTable_l	; output message to LCD
+	;addlw	0xff		; don't send the final carriage return to LCD
+	;lfsr	2, myArray
+	call	LCD_Send_Byte_D
+		
+	
+	goto keypad
 	return
 
 correct_pin:
+	movlw	'Y'
+	call	UART_Transmit_Byte
+	
+	;movlw	myTable_l	; output message to LCD
+	;addlw	0xff		; don't send the final carriage return to LCD
+	;lfsr	2, myArray
+	call	LCD_Send_Byte_D
+		
+	
+	goto keypad
 	return
 	
 	;goto	$		; goto current line in code
