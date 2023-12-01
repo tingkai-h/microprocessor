@@ -4,28 +4,26 @@ extrn	UART_Setup, UART_Transmit_Byte  ; external subroutines
 extrn	LCD_Setup, LCD_Send_Byte_D
 extrn	KeyPad_Setup, KeyPad_read
 	
-psect	edata
-    db  '1','2','3','4'
 
-psect	udata_acs   ; reserve data space in access ram
-counter:    ds 1    ; reserve one byte for a counter variable
-delay_count:ds 1    ; reserve one byte for counter in the delay routine
+;psect	udata_acs   ; reserve data space in access ram
+;counter:    ds 1    ; reserve one byte for a counter variable
+;delay_count:ds 1    ; reserve one byte for counter in the delay routine
     
-psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
-myArray:    ds 0x80 ; reserve 128 bytes for message data
+;psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
+;myArray:    ds 0x80 ; reserve 128 bytes for message data
 
-    
+
 psect	code, abs	
-rst: 	org 0x0
- 	goto	setup
+main:
+	org 0x0
+	goto	setup
 	
-int_hi : org 00008
-	goto int_ee
+	org 0x100
 	
-	
-	org	0x100	
+
 	; ******* Programme FLASH read Setup Code ***********************
-setup:  
+setup:  bcf CFGS ; point to Flash program memory
+	bsf EEPGD ; access Flash program memory
 	clrf TRISF, A
 	movlw 0xff
 	movwf LATF, A
@@ -43,10 +41,29 @@ setup:
 	movwf 0x60
 	movwf 0x80
 	movlw 0x0A0
-	movwf FSR0
+	movwf FSR1
 	
-	bra keypad
+	goto start
+	
+pin:	db  '1','2','3','4'
+	myArray	EQU 0x400
+	counter	EQU 0x10
+	align 2
+	
+start:	lfsr	0, myArray
+	movlw	low highword(pin)
+	movwf	TBLPTRU, A
+	movlw	high(pin)
+	movwf	TBLPTRH
+	movlw	low(pin)
+	movwf	TBLPTRL, A
+	movlw	4
+	movwf	counter, A
+	goto keypad
 
+loop:	
+	goto keypad
+	
 keypad:	call	KeyPad_read
 	cpfseq	0x50, A
 	goto TestVal
@@ -81,34 +98,31 @@ DisplayAsterisk:
 	goto keypad
 
 StoreVal:
-	movwf INDF0
-	incf FSR0, 1
+	movwf INDF1
+	incf FSR1, 1
 	decfsz 0xB0
 	goto DisplayAsterisk
 	movlw 0x4
 	movwf 0xB0
-	goto eeread
-	
-eeread: 
 	movlw 0x0A0
-	movwf FSR0
-	MOVLW 0x00;
-	MOVWF EEADRH ; Upper bits of Data Memory Address to write
-	MOVF 0x0D0, w
-	MOVWF EEADR ; Lower bits of Data Memory Address to write
-	BCF  EEPGD ; Point to DATA memory EECON1,
-	BCF  CFGS ; Access EEPROM ; EECON1,
-	BSF  RD
-	MOVF EEDATA, W; Data Memory Value to write
-	movwf 0xE0
-	movf INDF0, w
-	cpfseq 0xE0, A
+	movwf FSR1
+	goto pincheck
+
+pincheck:
+	tblrd*+
+	movff	TABLAT, POSTINC0
+	movf	TABLAT, W
+	movwf	0xE0
+	movf	INDF1, W
+	incf	FSR1, 1
+	cpfseq	0x0E0
 	goto incorrect_pin
-	incf FSR0, 1
-	incf 0x0D0, 1
-	decfsz 0xB0
-	goto eeread
+	decfsz	counter, A
+	bra pincheck
 	goto correct_pin
+	return
+	
+
 
 incorrect_pin:
 	movlw	'N'
@@ -148,13 +162,3 @@ delay2:	movlw 0xFF
 	decfsz 0x70, F, A
 	goto $-1
 	bra delay
-
-int_ee :
-	bcf PIR6, 4
-	movlw 0xf0
-	
-	movwf LATF
-	retfie f
-	
-
-	end	rst
