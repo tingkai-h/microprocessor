@@ -42,6 +42,8 @@ setup:  bcf CFGS ; point to Flash program memory
 	movwf 0x80
 	movlw 0x0A0
 	movwf FSR1
+	movlw 'C'
+	movwf 0x0F0
 	
 	goto start
 	
@@ -53,10 +55,12 @@ pin:	db  '1','2','3','4'
 correct_message:
 	db  'C','o','r','r','e','c','t'
 	myCorrectMessage EQU 0x500
+	align 2
 
 incorrect_message:
 	db  'I','n','c','o','r','r','e','c','t'
 	myIncorrectMessage EQU 0x600
+	align 2
 	
 start:	lfsr	0, myPin
 	movlw	low highword(pin)
@@ -73,6 +77,11 @@ loop:
 	goto keypad
 	
 keypad:	call	KeyPad_read
+	cpfseq	0xF0, A
+	goto testempty
+	goto pinreset
+	
+testempty:
 	cpfseq	0x50, A
 	goto TestVal
 	movlw	0xFF
@@ -182,7 +191,7 @@ correct_pin:
 	movwf	TBLPTRH
 	movlw	low(correct_message)
 	movwf	TBLPTRL, A
-	movlw	28
+	movlw	7
 	movwf	counter, A
 	
 correct_loop:
@@ -202,6 +211,9 @@ correct_loop:
 		
 	
 	goto keypad
+	return
+
+pinreset:
 	return
 	
 	;goto	$		; goto current line in code
