@@ -5,14 +5,33 @@ extrn	LCD_Setup, LCD_Send_Byte_D, LCD_Write_Message
 extrn	KeyPad_Setup, KeyPad_read
 	
 
-;psect	udata_acs   ; reserve data space in access ram
-;counter:    ds 1    ; reserve one byte for a counter variable
+psect	udata_acs   ; reserve data space in access ram
+counter:    ds 1    ; reserve one byte for a counter variable
 ;delay_count:ds 1    ; reserve one byte for counter in the delay routine
     
-;psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
-;myArray:    ds 0x80 ; reserve 128 bytes for message data
+psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
+myArray:    ds 0x80 ; reserve 128 bytes for message data
 
+pin:	db  '1','2','3','4'
+	myPin	EQU 4
+	;counter	EQU 0x10
+	align 2
 
+correct_message:
+	db  'C','o','r','r','e','c','t',0x0a
+	myCorrectMessage EQU 8
+	align 2
+
+incorrect_message:
+	db  'I','n','c','o','r','r','e','c','t',0x0a
+	myIncorrectMessage EQU 10
+	align 2
+
+prompt_message:
+	db  'E','n','t','e','r',' ','P','i','n',':',0x0a
+	myPromptMessage EQU 11
+	align 2
+    
 psect	code, abs	
 main:
 	org 0x0
@@ -47,22 +66,10 @@ setup:  bcf CFGS ; point to Flash program memory
 	
 	goto start
 	
-pin:	db  '1','2','3','4'
-	myPin	EQU 0x400
-	counter	EQU 0x10
-	align 2
 
-correct_message:
-	db  'C','o','r','r','e','c','t'
-	myCorrectMessage EQU 0x500
-	align 2
-
-incorrect_message:
-	db  'I','n','c','o','r','r','e','c','t'
-	myIncorrectMessage EQU 0x600
-	align 2
 	
-start:	lfsr	0, myPin
+start:	call	prompt	
+	lfsr	0, myArray
 	movlw	low highword(pin)
 	movwf	TBLPTRU, A
 	movlw	high(pin)
@@ -71,14 +78,16 @@ start:	lfsr	0, myPin
 	movwf	TBLPTRL, A
 	movlw	4
 	movwf	counter, A
+
+	
 	goto keypad
 
 loop:	
 	goto keypad
 	
 keypad:	call	KeyPad_read
-	cpfseq	0xF0, A
-	goto testempty
+	cpfseq	0xF0
+	bra testempty
 	goto pinreset
 	
 testempty:
@@ -137,13 +146,13 @@ pincheck:
 	decfsz	counter, A
 	bra pincheck
 	goto correct_pin
-	return
+	
 	
 
 
 incorrect_pin:
 	call LCD_Setup
-	lfsr	0, myIncorrectMessage
+	lfsr	0, myArray
 	movlw	low highword(incorrect_message)
 	movwf	TBLPTRU, A
  	movlw	high(incorrect_message)
@@ -169,22 +178,23 @@ incorrect_loop:
 	decfsz counter, A
 	bra incorrect_loop
 	
-	movlw	incorrect_message
-	lfsr	2,myIncorrectMessage
+	movlw	myIncorrectMessage
+	lfsr	2,myArray
 	call	UART_Transmit_Message
 	
-	movlw	incorrect_message
+	movlw	myIncorrectMessage
 	addlw	0xff		; don't send the final carriage return to LCD
-	lfsr	2, myIncorrectMessage
+	lfsr	2, myArray
 	call	LCD_Write_Message
-		
 	
-	goto keypad
-	return
+	retlw 0x0
+	
+	;goto keypad
+	;return
 	
 correct_pin:
 	call LCD_Setup
-	lfsr	0, myCorrectMessage
+	lfsr	0, myArray
  	movlw	low highword(correct_message)
 	movwf	TBLPTRU, A
 	movlw	high(correct_message)
@@ -200,21 +210,56 @@ correct_loop:
 	decfsz counter, A
 	bra correct_loop
 	
-	movlw	correct_message
-	lfsr	2,myCorrectMessage
+	movlw	myCorrectMessage
+	lfsr	2,myArray
 	call	UART_Transmit_Message
 	
-	movlw	correct_message
+	movlw	myCorrectMessage
 	addlw	0xff		; don't send the final carriage return to LCD
-	lfsr	2, myCorrectMessage
+	lfsr	2, myArray
 	call	LCD_Write_Message
-		
+	retlw	0x1	
 	
-	goto keypad
+	;goto keypad
+	;return
+
+prompt:
+	call LCD_Setup
+	lfsr	0, myArray
+	movlw	low highword(prompt_message)
+	movwf	TBLPTRU, A
+	movlw	high(prompt_message)
+	movwf	TBLPTRH
+	movlw	low(prompt_message)
+	movwf	TBLPTRL, A
+	movlw	10
+	movwf	counter, A
+	
+prompt_loop:
+	tblrd*+
+	movff	TABLAT, POSTINC0
+	decfsz counter, A
+	bra prompt_loop
+	
+	movlw	myPromptMessage
+	lfsr	2,myArray
+	call	UART_Transmit_Message
+	
+	movlw	myPromptMessage
+	addlw	0xff		; don't send the final carriage return to LCD
+	lfsr	2, myArray
+	call	LCD_Write_Message
 	return
 
 pinreset:
+	goto start
+	cpfseq 0x50, A
+	goto SetNewPin
+	goto start
+	
+SetNewPin:
 	return
+	
 	
 	;goto	$		; goto current line in code
 
