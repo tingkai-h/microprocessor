@@ -3,6 +3,8 @@
 extrn	UART_Setup, UART_Transmit_Byte, UART_Transmit_Message  ; external subroutines
 extrn	LCD_Setup, LCD_Send_Byte_D, LCD_Write_Message
 extrn	KeyPad_Setup, KeyPad_read
+extrn	keypad, pincheckstart
+extrn	pwm_setup
 	
 
 psect	udata_acs   ; reserve data space in access ram
@@ -31,6 +33,11 @@ prompt_message:
 	db  'E','n','t','e','r',' ','P','i','n',':',0x0a
 	myPromptMessage EQU 11
 	align 2
+
+new_pin_message:
+	db  'E','n','t','e','r',' ','N','e','w',' ','P','i','n',':',0x0a
+	myNewPinMessage	EQU 15
+	align 2
     
 psect	code, abs	
 main:
@@ -50,6 +57,7 @@ setup:  bcf CFGS ; point to Flash program memory
 	call        UART_Setup      ; setup UART
         call        LCD_Setup         ; setup LCD
         call        KeyPad_Setup   ; setup KeyPad
+	;call	    pwm_setup
 
 	movlw 0x0
 	movwf 0x50
@@ -63,6 +71,10 @@ setup:  bcf CFGS ; point to Flash program memory
 	movwf FSR1
 	movlw 'C'
 	movwf 0x0F0
+	movlw 0x3
+	movwf 0x0C0
+	movlw 0x2
+	movwf 0x0C1
 	
 	goto start
 	
@@ -78,40 +90,34 @@ start:	call	prompt
 	movwf	TBLPTRL, A
 	movlw	4
 	movwf	counter, A
-
 	
-	goto keypad
-
-loop:	
-	goto keypad
-	
-keypad:	call	KeyPad_read
-	cpfseq	0xF0
-	bra testempty
+PinEntry:	
+	call KeyPad_read
+	call keypad
+	cpfseq 0x0C1
+	goto EmptyCheck
 	goto pinreset
 	
-testempty:
-	cpfseq	0x50, A
-	goto TestVal
-	movlw	0xFF
-	movwf	0x80
-	bra keypad
-    
-	;bra keypad
+EmptyCheck:
+	cpfseq 0x0C0
+	goto PinProcess
+	bra PinEntry
 	
-	;movlw	myTable_l	; output message to UART
-	;lfsr	2, myArray
-TestVal:
-	cpfseq	0x80
-	goto DisplayVal
-		
-	bra keypad
+PinProcess:
+	decfsz 0xB0
+	goto DisplayAsterisk
+	call pincheckstart
 	
-DisplayVal:
-	movwf	0x80
-	call StoreVal
+	cpfseq 0x50
+	goto correct_pin
+	goto incorrect_pin
+
 	
-DisplayAsterisk:	
+
+	
+	
+
+DisplayAsterisk:
 	movlw	'*'
 	call	UART_Transmit_Byte
 	
@@ -119,37 +125,9 @@ DisplayAsterisk:
 	;addlw	0xff		; don't send the final carriage return to LCD
 	;lfsr	2, myArray
 	call	LCD_Send_Byte_D
-		
-	
-	goto keypad
-
-StoreVal:
-	movwf INDF1
-	incf FSR1, 1
-	decfsz 0xB0
-	goto DisplayAsterisk
-	movlw 0x4
-	movwf 0xB0
-	movlw 0x0A0
-	movwf FSR1
-	goto pincheck
-
-pincheck:
-	tblrd*+
-	movff	TABLAT, POSTINC0
-	movf	TABLAT, W
-	movwf	0xE0
-	movf	INDF1, W
-	incf	FSR1, 1
-	cpfseq	0x0E0
-	goto incorrect_pin
-	decfsz	counter, A
-	bra pincheck
-	goto correct_pin
+	bra PinEntry
 	
 	
-
-
 incorrect_pin:
 	call LCD_Setup
 	lfsr	0, myArray
@@ -187,7 +165,7 @@ incorrect_loop:
 	lfsr	2, myArray
 	call	LCD_Write_Message
 	
-	retlw 0x0
+	bra PinEntry
 	
 	;goto keypad
 	;return
@@ -218,7 +196,7 @@ correct_loop:
 	addlw	0xff		; don't send the final carriage return to LCD
 	lfsr	2, myArray
 	call	LCD_Write_Message
-	retlw	0x1	
+	bra PinEntry
 	
 	;goto keypad
 	;return
@@ -258,6 +236,31 @@ pinreset:
 	goto start
 	
 SetNewPin:
+	call LCD_Setup
+	lfsr	0, myArray
+	movlw	low highword(new_pin_message)
+	movwf	TBLPTRU, A
+	movlw	high(new_pin_message)
+	movwf	TBLPTRH
+	movlw	low(new_pin_message)
+	movwf	TBLPTRL, A
+	movlw	10
+	movwf	counter, A
+	
+new_pin_loop:
+	tblrd*+
+	movff	TABLAT, POSTINC0
+	decfsz counter, A
+	bra new_pin_loop
+	
+	movlw	myNewPinMessage
+	lfsr	2,myArray
+	call	UART_Transmit_Message
+	
+	movlw	myNewPinMessage
+	addlw	0xff		; don't send the final carriage return to LCD
+	lfsr	2, myArray
+	call	LCD_Write_Message
 	return
 	
 	
