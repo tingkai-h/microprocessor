@@ -54,10 +54,10 @@ setup:  bcf CFGS ; point to Flash program memory
 	movlw 0xff
 	movwf LATF, A
 	bcf PIR6, 4  
+	call	    pwm_setup
 	call        UART_Setup      ; setup UART
         call        LCD_Setup         ; setup LCD
         call        KeyPad_Setup   ; setup KeyPad
-	;call	    pwm_setup
 
 	movlw 0x0
 	movwf 0x50
