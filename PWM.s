@@ -1,6 +1,6 @@
 #include <xc.inc>
 
-global pwm_setup
+global pwm_setup, timer_setup
 psect	pwm_code,class=CODE
 
 pwm_setup:
@@ -27,3 +27,18 @@ pwm_setup:
     bsf T2CON, 2
     
     return
+    
+timer_setup:
+
+              movlw 0xC4 ; 11000100, 8-bit timer, 32 prescale value
+              movwf T0CON ;control register for timer0
+              
+              movlw 0xFB ;251
+              movwf TMR0L ;low byte
+              
+              ;Enable Global Interrupt, peripheral interrupt and TMR0 overflow interrupt
+              movlw 0xE0 ;11100000
+              movwf INTCON ;interrupt control register
+	      
+	      return
+
