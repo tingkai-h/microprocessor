@@ -17,8 +17,8 @@
       <itemPath>UART.s</itemPath>
       <itemPath>LCD.s</itemPath>
       <itemPath>KeyPad.s</itemPath>
-      <itemPath>PinCheck.s</itemPath>
       <itemPath>PWM.s</itemPath>
+      <itemPath>PinCheck.s</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
