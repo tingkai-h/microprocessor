@@ -4,7 +4,7 @@ extrn	UART_Setup, UART_Transmit_Byte, UART_Transmit_Message  ; external subrouti
 extrn	LCD_Setup, LCD_Send_Byte_D, LCD_Write_Message
 extrn	KeyPad_Setup, KeyPad_read
 extrn	keypad, pincheckstart
-extrn	pwm_setup, timer_setup
+extrn	timer_setup ;,pwm_setup 
 	
 
 psect	udata_acs   ; reserve data space in access ram
@@ -59,8 +59,8 @@ setup:  bcf CFGS ; point to Flash program memory
 	movlw 0xff
 	movwf LATF, A
 	bcf PIR6, 4  
-	call	    pwm_setup
-	;call	    timer_setup
+	;call	    pwm_setup
+	call	    timer_setup
 	call        UART_Setup      ; setup UART
         call        LCD_Setup         ; setup LCD
         call        KeyPad_Setup   ; setup KeyPad
