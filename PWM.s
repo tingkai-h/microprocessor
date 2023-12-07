@@ -1,6 +1,8 @@
 #include <xc.inc>
 
-global timer_setup;,pwm_setup
+global timer_setup, overflow;,pwm_setup
+
+
 psect	pwm_code,class=CODE
 
 ;pwm_setup:
@@ -31,13 +33,15 @@ psect	pwm_code,class=CODE
 timer_setup:
 	banksel TRISG     ; Select the register bank containing TRISG
 	bcf TRISG, 3 ; RG3 used as Servo signal pin output
+	
+	movlw 0xC3 ; 11000011, 8-bit timer, 16 prescale value
+	;movlw 0xC4 ; 11000100, 8-bit timer, 32 prescale value
+	;movlw 0xC5 ; 11000101, 8-bit timer, 64 prescale value
+	movwf T0CON ;control register for timer0
 
 	movlw 0xFB ;251 for TMR0 register so timer overflows every 1us
 	movwf TMR0L ;low byte
 	
-	movlw 0xC4 ; 11000100, 8-bit timer, 32 prescale value
-	;movlw 0xC5 ; 11000101, 8-bit timer, 64 prescale value
-	movwf T0CON ;control register for timer0
 	
 	;Enable Global Interrupt, peripheral interrupt and TMR0 overflow interrupt
 	movlw 0xE0 ;11100000
@@ -46,11 +50,12 @@ timer_setup:
 	
 	;making counter to count no. of - delete later
 	movlw 0x00
-	movwf 0x990 ;file register address of counter
+	movwf 0x10 ;file register address of counter
 
 	goto inter1
 
 inter1: 
+	;bsf INTCON, 2
 	btfss  INTCON, 2 ;skip next line if bit 2 is set, i.e. an overflow
 	return ; If bit 2 is 0
 	goto overflow	;if bit2 is 1, i.e. if TMR0IF flag bit is 1
@@ -62,13 +67,13 @@ overflow:
 	;has this cleared the prescaler as we wrote to TMR0
 
 	bcf INTCON, 2 ;clear TMR0IF flag bit (bit 2 in INTCON)
-	incf 0x990
+	incf 0x10, 1
 	
 	movlw 0x96 ;moving on-time (duty cycle) value 150 to wreg
-	cpfslt 0x990 ;compare on-time w count and skip next line if count is lower
+	cpfslt 0x10 ;compare on-time w count and skip next line if count is lower
 	goto turn_pin_on
 	movlw 0xC8 ;moving (on_time+(200-on_time)) which is 200 to wreg 
-	cpfslt 0x990
+	cpfslt 0x10
 	goto turn_pin_off
 	
 	return
@@ -79,7 +84,7 @@ turn_pin_on:
 
 turn_pin_off:
 	bcf LATG, 3 ;clear RG3 pin 
-	clrf 0x990 ;reset file register address of counter
+	clrf 0x10 ;reset file register address of counter
 	return
 
 	

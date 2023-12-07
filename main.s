@@ -4,12 +4,14 @@ extrn	UART_Setup, UART_Transmit_Byte, UART_Transmit_Message  ; external subrouti
 extrn	LCD_Setup, LCD_Send_Byte_D, LCD_Write_Message
 extrn	KeyPad_Setup, KeyPad_read
 extrn	keypad, pincheckstart
-extrn	timer_setup ;,pwm_setup 
+extrn	timer_setup, overflow ;,pwm_setup 
+
 	
 
 psect	udata_acs   ; reserve data space in access ram
 counter:    ds 1    ; reserve one byte for a counter variable
 ;delay_count:ds 1    ; reserve one byte for counter in the delay routine
+
     
 psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
 myArray:    ds 0x80 ; reserve 128 bytes for message data
@@ -49,6 +51,11 @@ main:
 	org 0x0
 	goto	setup
 	
+org 0x08
+	goto overflow
+	movlw 0x0
+	retfie
+	
 	org 0x100
 	
 
@@ -60,7 +67,7 @@ setup:  bcf CFGS ; point to Flash program memory
 	movwf LATF, A
 	bcf PIR6, 4  
 	;call	    pwm_setup
-	call	    timer_setup
+	;call	    timer_setup
 	call        UART_Setup      ; setup UART
         call        LCD_Setup         ; setup LCD
         call        KeyPad_Setup   ; setup KeyPad
@@ -134,7 +141,11 @@ DisplayAsterisk:
 	;addlw	0xff		; don't send the final carriage return to LCD
 	;lfsr	2, myArray
 	call	LCD_Send_Byte_D
+	movf 0x0C2,W
+	cpfseq 0x51
 	bra PinEntry
+	bra new_pin_store
+
 	
 	
 incorrect_pin:
@@ -307,19 +318,35 @@ SetNewPin:
 	
 new_pin_loop:
 	tblrd*+
-	movff	TABLAT, POSTINC0
+	movff TABLAT, POSTINC0
 	decfsz counter, A
 	bra new_pin_loop
-	
-	movlw	myNewPinMessage
-	lfsr	2,myArray
-	call	UART_Transmit_Message
-	
-	movlw	myNewPinMessage
-	addlw	0xff		; don't send the final carriage return to LCD
+	movlw myNewPinMessage
+	lfsr 2,myArray
+	call UART_Transmit_Message
+	movlw myNewPinMessage
+	addlw 0xff
 	lfsr	2, myArray
 	call	LCD_Write_Message
-	bra PinEntry
+	movlw 0x4
+	movwf 0x0B0
+
+new_pin_store:
+	call KeyPad_read
+	call keypad
+	cpfseq 0x0C0
+	goto new_pin_store_process
+	bra new_pin_store
+
+new_pin_store_process:
+	decfsz 0xB0
+	goto DisplayAsterisk
+	goto new_pin_write
+
+new_pin_write:
+	movlw 0x4
+	movwf counter
+
 	
 	
 	;goto	$		; goto current line in code
