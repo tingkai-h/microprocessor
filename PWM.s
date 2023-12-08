@@ -1,8 +1,11 @@
 #include <xc.inc>
 
-global timer_setup, overflow;,pwm_setup
+global timer_setup, overflow, pwm_width
 
-
+psect	udata_acs   ; reserve data space in access ram
+overflow_counter: ds    1	    ; reserve 1 byte for variable KeyPad_counter
+pwm_width:	  ds	1	    ; reserve 1 byte for pwm width
+    
 psect	pwm_code,class=CODE
 
 ;pwm_setup:
@@ -31,13 +34,17 @@ psect	pwm_code,class=CODE
 ;    return
     
 timer_setup:
-	banksel TRISG     ; Select the register bank containing TRISG
-	bcf TRISG, 3 ; RG3 used as Servo signal pin output
+	movlw 10
+	movwf pwm_width, A
 	
-	;movlw 0xC3 ; 11000011, 8-bit timer, 16 prescale value
+	movlw 0x0
+
+	bcf TRISG, 0 ; RG0 used as Servo signal pin output
+	
+	movlw 0xC3 ; 11000011, 8-bit timer, 16 prescale value
 	;movlw 0xC4 ; 11000100, 8-bit timer, 32 prescale value
-	;movlw 0xC5 ; 11000101, 8-bit timer, 64 prescale value
-	movlw 11000111B ; 11000101, 8-bit timer, 256 prescale value
+	;movlw 11000101B ; 11000101, 8-bit timer, 64 prescale value
+	;movlw 11000111B ; 11000101, 8-bit timer, 256 prescale value
 	movwf T0CON ;control register for timer0
 
 	movlw 0xFB ;251 for TMR0 register so timer overflows every 1us
@@ -51,7 +58,7 @@ timer_setup:
 	
 	;making counter to count no. of - delete later
 	movlw 0x00
-	movwf 0x10 ;file register address of counter
+	movwf overflow_counter, A ;file register address of counter
 
 	goto inter1
 
@@ -63,31 +70,33 @@ inter1:
 	
 overflow:
     
-	movlw 0xFC ;252 for TMR0 register since there will be one additional instruction cycle during reinitializing
+	movlw 156 ;156 for TMR0 register since there will be one additional instruction cycle during reinitializing
 	movwf TMR0L ;low byte
 	;has this cleared the prescaler as we wrote to TMR0
 
 	bcf INTCON, 2 ;clear TMR0IF flag bit (bit 2 in INTCON)
-	incf 0x10, 1
+	incf overflow_counter, A
 	
-	movlw 0xA0 ;moving on-time (duty cycle) value 150 to wreg
-	cpfslt 0x10 ;compare on-time w count and skip next line if count is lower
-	call turn_pin_on
-	movlw 0xC8 ;moving (on_time+(200-on_time)) which is 200 to wreg 
-	cpfslt 0x10
+	
+	movf pwm_width, W, A ;moving on-time (duty cycle) value 150 to wreg
+	cpfsgt overflow_counter, A ;compare on-time w count and skip next line if count is lower
+	bra turn_pin_on
 	call turn_pin_off
 	
+	movlw 200 ;moving (on_time+(200-on_time)) which is 200 to wreg 
+	cpfslt overflow_counter, A
+	clrf overflow_counter, A ;reset file register address of counter
 	return
 
 turn_pin_on:
-	bsf LATG, 3 ;set RG3 pin
+	bsf LATG, 0 ;set RG0 pin
 	return
 
 turn_pin_off:
-	bcf LATG, 3 ;clear RG3 pin 
-	clrf 0x10 ;reset file register address of counter
+	bcf LATG, 0 ;clear RG0 pin 
 	return
 
+	;
 	
 
 
