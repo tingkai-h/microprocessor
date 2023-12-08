@@ -34,9 +34,10 @@ timer_setup:
 	banksel TRISG     ; Select the register bank containing TRISG
 	bcf TRISG, 3 ; RG3 used as Servo signal pin output
 	
-	movlw 0xC3 ; 11000011, 8-bit timer, 16 prescale value
+	;movlw 0xC3 ; 11000011, 8-bit timer, 16 prescale value
 	;movlw 0xC4 ; 11000100, 8-bit timer, 32 prescale value
 	;movlw 0xC5 ; 11000101, 8-bit timer, 64 prescale value
+	movlw 11000111B ; 11000101, 8-bit timer, 256 prescale value
 	movwf T0CON ;control register for timer0
 
 	movlw 0xFB ;251 for TMR0 register so timer overflows every 1us
@@ -69,12 +70,12 @@ overflow:
 	bcf INTCON, 2 ;clear TMR0IF flag bit (bit 2 in INTCON)
 	incf 0x10, 1
 	
-	movlw 0x96 ;moving on-time (duty cycle) value 150 to wreg
+	movlw 0xA0 ;moving on-time (duty cycle) value 150 to wreg
 	cpfslt 0x10 ;compare on-time w count and skip next line if count is lower
-	goto turn_pin_on
+	call turn_pin_on
 	movlw 0xC8 ;moving (on_time+(200-on_time)) which is 200 to wreg 
 	cpfslt 0x10
-	goto turn_pin_off
+	call turn_pin_off
 	
 	return
 
