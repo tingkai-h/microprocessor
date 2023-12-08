@@ -4,15 +4,13 @@ extrn	UART_Setup, UART_Transmit_Byte, UART_Transmit_Message  ; external subrouti
 extrn	LCD_Setup, LCD_Send_Byte_D, LCD_Write_Message
 extrn	KeyPad_Setup, KeyPad_read
 extrn	keypad, pincheckstart
-extrn	timer_setup, overflow ;,pwm_setup 
+extrn	timer_setup, overflow, pwm_width ;,pwm_setup 
 
 	
 
 psect	udata_acs   ; reserve data space in access ram
 counter:    ds 1    ; reserve one byte for a counter variable
-;delay_count:ds 1    ; reserve one byte for counter in the delay routine
-
-;hi chinius
+;delay_count:ds 1    ; reserve one byte for  counter in the delay routine
     
 psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
 myArray:    ds 0x80 ; reserve 128 bytes for message data
@@ -53,9 +51,8 @@ main:
 	goto	setup
 	
 org 0x08
-	goto overflow
-	movlw 0x0
-	retfie
+	call overflow
+	retfie f
 	
 	org 0x100
 	
@@ -68,7 +65,7 @@ setup:  bcf CFGS ; point to Flash program memory
 	movwf LATF, A
 	bcf PIR6, 4  
 	;call	    pwm_setup
-	;call	    timer_setup
+	call	    timer_setup
 	call        UART_Setup      ; setup UART
         call        LCD_Setup         ; setup LCD
         call        KeyPad_Setup   ; setup KeyPad
@@ -196,7 +193,9 @@ incorrect_loop:
 	;return
 	
 correct_pin:
-	call LCD_Setup
+	movlw	20
+	movwf	pwm_width, A
+	call	LCD_Setup
 	lfsr	0, myArray
  	movlw	low highword(correct_message)
 	movwf	TBLPTRU, A
