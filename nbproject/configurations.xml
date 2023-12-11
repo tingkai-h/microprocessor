@@ -19,6 +19,7 @@
       <itemPath>KeyPad.s</itemPath>
       <itemPath>PWM.s</itemPath>
       <itemPath>PinCheck.s</itemPath>
+      <itemPath>Buzzer.s</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

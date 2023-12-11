@@ -45,7 +45,7 @@ pincheckstart:
 	movwf 0xB0
 	movwf check_counter, A
 	movlw 0x0A0
-	movwf FSR1
+	movwf FSR1, A
 	goto pincheck
 
 pincheck:
@@ -53,8 +53,8 @@ pincheck:
 	movff	TABLAT, POSTINC0
 	movf	TABLAT, W
 	movwf	0xE0
-	movf	INDF1, W
-	incf	FSR1, 1
+	movf	INDF1, W, A
+	incf	FSR1, A
 	cpfseq	0x0E0
 	;goto incorrect_pin
 	retlw 0x0

@@ -1,19 +1,36 @@
 #include <xc.inc>
 
 extrn	UART_Setup, UART_Transmit_Byte, UART_Transmit_Message  ; external subroutines
-extrn	LCD_Setup, LCD_Send_Byte_D, LCD_Write_Message
+extrn	LCD_Setup, LCD_Send_Byte_D, LCD_Write_Message, LCD_delay_ms
 extrn	KeyPad_Setup, KeyPad_read
 extrn	keypad, pincheckstart
-extrn	timer_setup, overflow, pwm_width ;,pwm_setup 
-
+extrn	timer_setup, overflow, pwm_width ;,pwm_setup
+extrn	pwm_buzzer_setup
+    
+global pin
 	
 
 psect	udata_acs   ; reserve data space in access ram
 counter:    ds 1    ; reserve one byte for a counter variable
+incorrect_counter:    ds 1
+BUFFER_ADDR_HIGH:   ds 1
+BUFFER_ADDR_LOW:    ds 1
+CODE_ADDR_UPPER:    ds 1
+CODE_ADDR_HIGH:	    ds 1
+CODE_ADDR_LOW:	    ds 1
+DATA_ADDR_HIGH:	    ds 1
+DATA_ADDR_LOW:	    ds 1
+NEW_DATA_LOW:	    ds 1
+NEW_DATA_HIGH:	    ds 1
+
+
+
+
+
 ;delay_count:ds 1    ; reserve one byte for  counter in the delay routine
     
 psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
-myArray:    ds 0x80 ; reserve 128 bytes for message data
+myArray:    ds 0x90 ; reserve 128 bytes for message data
 
 pin:	db  '1','2','3','4'
 	myPin	EQU 4
@@ -48,6 +65,8 @@ new_pin_message:
 psect	code, abs	
 main:
 	org 0x0
+	movlw 0x3
+	movwf incorrect_counter, A
 	goto	setup
 	
 org 0x08
@@ -63,10 +82,10 @@ setup:  bcf CFGS ; point to Flash program memory
 	clrf TRISF, A
 	movlw 0xff
 	movwf LATF, A
-	bcf PIR6, 4  
-	;call	    pwm_setup
+	bcf PIR6, 4
+	call	    pwm_buzzer_setup
 	call	    timer_setup
-	call        UART_Setup      ; setup UART
+	call         UART_Setup      ; setup UART
         call        LCD_Setup         ; setup LCD
         call        KeyPad_Setup   ; setup KeyPad
 
@@ -74,6 +93,7 @@ setup:  bcf CFGS ; point to Flash program memory
 	movwf 0x50
 	movwf 0x0D0 ;tracking number of eeprom digits read
 	movwf 0x0C2 ;pinreset on/off
+	movwf 0x0C3 ;time to store new pin checker
 	movlw 0x1
 	movwf 0x51
 	movlw 0x4 ;maximum digits in pin (4)
@@ -106,7 +126,7 @@ start:	call	prompt
 	movwf	counter, A
 	
 PinEntry:	
-	call KeyPad_read
+	call KeyPad_read 
 	call keypad
 	cpfseq 0x0C1
 	goto EmptyCheck
@@ -121,13 +141,9 @@ PinProcess:
 	decfsz 0xB0
 	goto DisplayAsterisk
 	call pincheckstart
-	
 	cpfseq 0x50
 	goto correct_pin
 	goto incorrect_pin
-
-	
-
 	
 	
 
@@ -139,7 +155,7 @@ DisplayAsterisk:
 	;addlw	0xff		; don't send the final carriage return to LCD
 	;lfsr	2, myArray
 	call	LCD_Send_Byte_D
-	movf 0x0C2,W
+	movf 0x0C3,W
 	cpfseq 0x51
 	bra PinEntry
 	bra new_pin_store
@@ -147,6 +163,8 @@ DisplayAsterisk:
 	
 	
 incorrect_pin:
+	;movlw	0x0
+	;movwf	0x0C3
 	call LCD_Setup
 	lfsr	0, myArray
 	movlw	low highword(incorrect_message)
@@ -182,17 +200,29 @@ incorrect_loop:
 	addlw	0xff		; don't send the final carriage return to LCD
 	lfsr	2, myArray
 	call	LCD_Write_Message
-	movf	0x0C2,W
-	cpfseq	0x51, A
-	bra PinEntry
-	movlw	0x0
-	goto	pinreset_check
+	;movf	0x0C2,W
+	;cpfseq	0x51, A
+	movlw 0xff
+	call LCD_delay_ms
+	call LCD_delay_ms
+	call LCD_delay_ms
+	decfsz incorrect_counter
+	goto setup
+	goto $
+	
+	;movlw	0x0
+	;goto	pinreset_check
 	;bra PinEntry
 	
 	;goto keypad
 	;return
 	
 correct_pin:
+	;movlw	0x1
+	;movwf	0x0C3
+	movf	0x0C2,W
+	cpfseq	0x50
+	goto	pinreset_check
 	movlw	20
 	movwf	pwm_width, A
 	call	LCD_Setup
@@ -220,15 +250,15 @@ correct_loop:
 	addlw	0xff		; don't send the final carriage return to LCD
 	lfsr	2, myArray
 	call	LCD_Write_Message
-	movf	0x0C2,W
-	cpfseq	0x51, A
-	bra PinEntry
-	movlw	0x1
-	goto	pinreset_check
 	
+	movlw 0xff
+	call LCD_delay_ms
+	call LCD_delay_ms
+	call LCD_delay_ms
+	movlw 0x3
+	movwf incorrect_counter, A
+	goto setup
 	
-	;goto keypad
-	;return
 
 prompt:
 	call LCD_Setup
@@ -300,6 +330,7 @@ pinreset_loop:
 	call PinEntry
 
 pinreset_check:
+	;movf 0x0C3,W
 	cpfseq 0x50, A
 	goto SetNewPin
 	goto start
@@ -332,6 +363,8 @@ new_pin_loop:
 	movwf 0x0B0
 
 new_pin_store:
+	movlw 0x1
+	movwf 0x0C3
 	call KeyPad_read
 	call keypad
 	cpfseq 0x0C0
@@ -344,9 +377,91 @@ new_pin_store_process:
 	goto new_pin_write
 
 new_pin_write:
-	movlw 0x4
-	movwf counter
-
+	;movlw 0x4
+	;movwf counter
+	;movf 0x0A4, W
+	;movwf pin
+	;movf 0x0A5, W
+	;movwf pin+1
+	;movf 0x0A6,W
+	;movwf pin+2
+	;movf 0x0A7,W
+	;movwf pin+3
+	;call        LCD_Setup
+	;goto setup
+	
+	MOVLW 4 ; number of bytes in erase block
+	MOVWF counter
+	MOVLW BUFFER_ADDR_HIGH ; point to buffer
+	MOVWF FSR0H
+	MOVLW BUFFER_ADDR_LOW
+	MOVWF FSR0L
+	MOVLW CODE_ADDR_UPPER ; Load TBLPTR with the base
+	MOVWF TBLPTRU ; address of the memory block
+	MOVLW CODE_ADDR_HIGH
+	MOVWF TBLPTRH
+	MOVLW CODE_ADDR_LOW
+	MOVWF TBLPTRL
+READ_BLOCK:
+	TBLRD*+ ; read into TABLAT, and inc
+	MOVF TABLAT, W ; get data
+	MOVWF POSTINC0 ; store data
+	DECFSZ counter ; done?
+	BRA READ_BLOCK ; repeat
+MODIFY_WORD:
+	MOVLW DATA_ADDR_HIGH ; point to buffer
+	MOVWF FSR0H
+	MOVLW DATA_ADDR_LOW
+	MOVWF FSR0L
+	MOVLW NEW_DATA_LOW ; update buffer word
+	MOVWF POSTINC0
+	MOVLW NEW_DATA_HIGH
+	MOVWF INDF0
+ERASE_BLOCK:
+	MOVLW CODE_ADDR_UPPER ; load TBLPTR with the base
+	MOVWF TBLPTRU ; address of the memory block
+	MOVLW CODE_ADDR_HIGH
+	MOVWF TBLPTRH
+	MOVLW CODE_ADDR_LOW
+	MOVWF TBLPTRL
+	BSF EEPGD ; point to Flash program memory EECON1, 
+	BCF CFGS ; access Flash program memory EECON1, 
+	BSF WREN ; enable write to memory EECON1, 
+	BSF FREE ; enable Row Erase operation EECON1, 
+	BCF GIE ; disable interrupts INTCON, 
+	MOVLW 0x55
+	MOVWF EECON2 ; write 55h
+	MOVLW 0xAA
+	MOVWF EECON2 ; write 0AAh
+	BSF WR ; start erase (CPU stall) EECON1, W
+	BSF GIE ; re-enable interrupts INTCON, 
+	TBLRD*- ; dummy read decrement
+	MOVLW BUFFER_ADDR_HIGH ; point to buffer
+	MOVWF FSR0H
+	MOVLW BUFFER_ADDR_LOW
+	MOVWF FSR0L
+WRITE_BUFFER_BACK:
+	MOVLW 4 ; number of bytes in holding register
+	MOVWF  counter
+WRITE_BYTE_TO_HREGS:
+	MOVFF POSTINC0, WREG ; get low byte of buffer data
+	MOVWF TABLAT ; present data to table latch
+	TBLWT+* ; write data, perform a short write
+	; to internal TBLWT holding register.
+	DECFSZ counter ; loop until buffers are full
+	BRA WRITE_BYTE_TO_HREGS
+PROGRAM_MEMORY:
+	BSF EEPGD ; point to Flash program memory EECON1, 
+	BCF CFGS ; access Flash program memory EECON1, 
+	BSF WREN ; enable write to memory EECON1, 
+	BCF GIE ; disable interrupts INTCON, 
+	MOVLW 0x55
+	MOVWF EECON2 ; write 55h
+	MOVLW 0xAA
+	MOVWF EECON2 ; write 0AAh
+	BSF WR ; start program (CPU stall) EECON1, 
+	BSF GIE ; re-enable interrupts INTCON, 
+	BCF WREN ; disable write to memory EECON1, 
 	
 	
 	;goto	$		; goto current line in code
