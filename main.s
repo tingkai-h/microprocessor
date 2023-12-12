@@ -86,7 +86,7 @@ setup:  bcf CFGS ; point to Flash program memory
 	movlw 0xff
 	movwf LATF, A
 	bcf PIR6, 4
-	call	    pwm_buzzer_setup
+	
 	call	    timer_setup
 	call         UART_Setup      ; setup UART
         call        LCD_Setup         ; setup LCD
@@ -211,7 +211,8 @@ incorrect_loop:
 	call LCD_delay_ms
 	decfsz incorrect_counter
 	goto setup
-	goto $
+	call	    pwm_buzzer_setup
+	goto setup
 	
 	;movlw	0x0
 	;goto	pinreset_check
@@ -260,6 +261,7 @@ correct_loop:
 	call LCD_delay_ms
 	movlw 0x3
 	movwf incorrect_counter, A
+	CLRF CCP4CON ;turn off buzzer
 	goto setup
 	
 
