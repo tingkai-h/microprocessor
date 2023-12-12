@@ -31,12 +31,27 @@ NEW_DATA_HIGH:	    ds 1
     
 psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
 myArray:    ds 0x90 ; reserve 128 bytes for message data
-
-pin:	db  '1','2','3','4'
+input_pin:  ds 4
+new_pin:    ds 4
+    
+psect	code, abs	
+main:
+	org 0x0
+	movlw 0x3
+	movwf incorrect_counter, A
+	goto	setup
+	
+org 0x08
+	call overflow
+	retfie f
+		
+	org 0x80
+pin:	db  '0','0','0','0'
 	myPin	EQU 4
 	;counter	EQU 0x10
 	align 2
-
+	
+	org 0x100
 correct_message:
 	db  'C','o','r','r','e','c','t',0x0a
 	myCorrectMessage EQU 8
@@ -61,21 +76,9 @@ new_pin_message:
 	db  'N','e','w',' ','P','i','n',':',0x0a
 	myNewPinMessage	EQU 9
 	align 2
-    
-psect	code, abs	
-main:
-	org 0x0
-	movlw 0x3
-	movwf incorrect_counter, A
-	goto	setup
 	
-org 0x08
-	call overflow
-	retfie f
+	org 0x200
 	
-	org 0x100
-	
-
 	; ******* Programme FLASH read Setup Code ***********************
 setup:  bcf CFGS ; point to Flash program memory
 	bsf EEPGD ; access Flash program memory
@@ -390,40 +393,40 @@ new_pin_write:
 	;call        LCD_Setup
 	;goto setup
 	
-	MOVLW 4 ; number of bytes in erase block
-	MOVWF counter
-	MOVLW BUFFER_ADDR_HIGH ; point to buffer
-	MOVWF FSR0H
-	MOVLW BUFFER_ADDR_LOW
-	MOVWF FSR0L
-	MOVLW CODE_ADDR_UPPER ; Load TBLPTR with the base
-	MOVWF TBLPTRU ; address of the memory block
-	MOVLW CODE_ADDR_HIGH
-	MOVWF TBLPTRH
-	MOVLW CODE_ADDR_LOW
-	MOVWF TBLPTRL
-READ_BLOCK:
-	TBLRD*+ ; read into TABLAT, and inc
-	MOVF TABLAT, W ; get data
-	MOVWF POSTINC0 ; store data
-	DECFSZ counter ; done?
-	BRA READ_BLOCK ; repeat
-MODIFY_WORD:
-	MOVLW DATA_ADDR_HIGH ; point to buffer
-	MOVWF FSR0H
-	MOVLW DATA_ADDR_LOW
-	MOVWF FSR0L
-	MOVLW NEW_DATA_LOW ; update buffer word
-	MOVWF POSTINC0
-	MOVLW NEW_DATA_HIGH
-	MOVWF INDF0
+;	MOVLW 4 ; number of bytes in erase block
+;	MOVWF counter
+;	MOVLW BUFFER_ADDR_HIGH ; point to buffer
+;	MOVWF FSR0H
+;	MOVLW BUFFER_ADDR_LOW
+;	MOVWF FSR0L
+;	MOVLW CODE_ADDR_UPPER ; Load TBLPTR with the base
+;	MOVWF TBLPTRU ; address of the memory block
+;	MOVLW CODE_ADDR_HIGH
+;	MOVWF TBLPTRH
+;	MOVLW CODE_ADDR_LOW
+;	MOVWF TBLPTRL
+;READ_BLOCK:
+;	TBLRD*+ ; read into TABLAT, and inc
+;	MOVF TABLAT, W ; get data
+;	MOVWF POSTINC0 ; store data
+;	DECFSZ counter ; done?
+;	BRA READ_BLOCK ; repeat
+;MODIFY_WORD:
+;	MOVLW DATA_ADDR_HIGH ; point to buffer
+;	MOVWF FSR0H
+;	MOVLW DATA_ADDR_LOW
+;	MOVWF FSR0L
+;	MOVLW NEW_DATA_LOW ; update buffer word
+;	MOVWF POSTINC0
+;	MOVLW NEW_DATA_HIGH
+;	MOVWF INDF0
 ERASE_BLOCK:
-	MOVLW CODE_ADDR_UPPER ; load TBLPTR with the base
-	MOVWF TBLPTRU ; address of the memory block
-	MOVLW CODE_ADDR_HIGH
-	MOVWF TBLPTRH
-	MOVLW CODE_ADDR_LOW
-	MOVWF TBLPTRL
+	movlw	low highword(pin)
+	movwf	TBLPTRU, A
+	movlw	high(pin)
+	movwf	TBLPTRH
+	movlw	low(pin)
+	movwf	TBLPTRL, A
 	BSF EEPGD ; point to Flash program memory EECON1, 
 	BCF CFGS ; access Flash program memory EECON1, 
 	BSF WREN ; enable write to memory EECON1, 
@@ -436,10 +439,12 @@ ERASE_BLOCK:
 	BSF WR ; start erase (CPU stall) EECON1, W
 	BSF GIE ; re-enable interrupts INTCON, 
 	TBLRD*- ; dummy read decrement
-	MOVLW BUFFER_ADDR_HIGH ; point to buffer
-	MOVWF FSR0H
-	MOVLW BUFFER_ADDR_LOW
-	MOVWF FSR0L
+;	MOVLW BUFFER_ADDR_HIGH ; point to buffer
+;	MOVWF FSR0H
+;	MOVLW BUFFER_ADDR_LOW
+;	MOVWF FSR0L
+;	lfsr	0, new_pin
+	lfsr	0, 0x0A4
 WRITE_BUFFER_BACK:
 	MOVLW 4 ; number of bytes in holding register
 	MOVWF  counter
@@ -462,7 +467,7 @@ PROGRAM_MEMORY:
 	BSF WR ; start program (CPU stall) EECON1, 
 	BSF GIE ; re-enable interrupts INTCON, 
 	BCF WREN ; disable write to memory EECON1, 
-	
+	goto setup
 	
 	;goto	$		; goto current line in code
 

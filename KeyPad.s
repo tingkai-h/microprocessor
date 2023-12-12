@@ -51,6 +51,7 @@ delay:
 delay2:
     movlw 0xFF
     movwf 0x30, A
+
     decfsz 0x30, F, A
     goto $-1
     bra delay

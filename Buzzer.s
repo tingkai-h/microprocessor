@@ -21,7 +21,7 @@ pwm_buzzer_setup:
     ;bcf CCP4CON,4
     ;bcf CCP4CON,5
     
-    bsf TRISB, 6 ; clears tristate port b register and sets pin 6 as output
+    bsf TRISG, 3 ; clears tristate port b register and sets pin 6 as output
     
     ;movlw 0x04 ;prescale value
     ;movwf T2CON

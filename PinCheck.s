@@ -6,7 +6,7 @@ global  keypad, pincheckstart
 psect	udata_acs   ; reserve data space in access ram
 check_counter:    ds 1    ; reserve one byte for a counter variable
 
-psect	pincheck_code,class=CODE
+psect	pincheck_code, class=CODE
 keypad:	cpfseq	0xF0
 	bra testempty
 	retlw 0x2
