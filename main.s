@@ -1,10 +1,11 @@
 #include <xc.inc>
 
-extrn	UART_Setup, UART_Transmit_Byte, UART_Transmit_Message  ; external subroutines
+; external subroutines
+extrn	UART_Setup, UART_Transmit_Byte, UART_Transmit_Message  
 extrn	LCD_Setup, LCD_Send_Byte_D, LCD_Write_Message, LCD_delay_ms
 extrn	KeyPad_Setup, KeyPad_read
 extrn	keypad, pincheckstart
-extrn	timer_setup, overflow, pwm_width ;,pwm_setup
+extrn	timer_setup, overflow, pwm_width
 extrn	pwm_buzzer_setup
     
 global pin
@@ -228,7 +229,7 @@ correct_pin:
 	cpfseq	0x50
 	goto	pinreset_check
 	movlw	20
-	movwf	pwm_width, A
+	movwf	pwm_width, A ;sets correct pwm_width so servomotor turns
 	call	LCD_Setup
 	lfsr	0, myArray
  	movlw	low highword(correct_message)
