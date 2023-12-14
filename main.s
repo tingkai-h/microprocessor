@@ -14,21 +14,7 @@ global pin
 psect	udata_acs   ; reserve data space in access ram
 counter:    ds 1    ; reserve one byte for a counter variable
 incorrect_counter:    ds 1
-BUFFER_ADDR_HIGH:   ds 1
-BUFFER_ADDR_LOW:    ds 1
-CODE_ADDR_UPPER:    ds 1
-CODE_ADDR_HIGH:	    ds 1
-CODE_ADDR_LOW:	    ds 1
-DATA_ADDR_HIGH:	    ds 1
-DATA_ADDR_LOW:	    ds 1
-NEW_DATA_LOW:	    ds 1
-NEW_DATA_HIGH:	    ds 1
 
-
-
-
-
-;delay_count:ds 1    ; reserve one byte for  counter in the delay routine
     
 psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
 myArray:    ds 0x90 ; reserve 128 bytes for message data
@@ -38,42 +24,41 @@ new_pin:    ds 4
 psect	code, abs	
 main:
 	org 0x0
-	movlw 0x3
+	movlw 0x3 ;alarm triggered after 3 consecutive failed attempts
 	movwf incorrect_counter, A
 	goto	setup
 	
-org 0x08
-	call overflow
-	retfie f
+org 0x08 ;high priority interrupt vector addres in program memory
+	call overflow ;calling interrupt routine
+	retfie f ;exits interrupt routine
 		
 	org 0x80
-pin:	db  '0','0','0','0'
+pin:	db  '0','0','0','0' ;setting base pin when system is initialised
 	myPin	EQU 4
-	;counter	EQU 0x10
 	align 2
 	
 	org 0x100
-correct_message:
+correct_message: ;messsage to be displayed on LCD when correct pim entered
 	db  'C','o','r','r','e','c','t',0x0a
 	myCorrectMessage EQU 8
 	align 2
 
-incorrect_message:
+incorrect_message: ;message to be displayed on LCD when incorrect pin entered 
 	db  'I','n','c','o','r','r','e','c','t',0x0a
 	myIncorrectMessage EQU 10
 	align 2
 
-prompt_message:
+prompt_message: ;pin entry prompt LCD message 
 	db  'E','n','t','e','r',' ','P','i','n',':',0x0a
 	myPromptMessage EQU 11
 	align 2
 
-old_pin_message:
+old_pin_message: ;pin entry prompt LCD message when reset requested
 	db  'O','l','d',' ','P','i','n',':',0x0a
 	myOldPinMessage EQU 9
 	align 2
 	
-new_pin_message:
+new_pin_message: ;new pin entry prompt LCD message 
 	db  'N','e','w',' ','P','i','n',':',0x0a
 	myNewPinMessage	EQU 9
 	align 2
@@ -83,42 +68,36 @@ new_pin_message:
 	; ******* Programme FLASH read Setup Code ***********************
 setup:  bcf CFGS ; point to Flash program memory
 	bsf EEPGD ; access Flash program memory
-	clrf TRISF, A
-	movlw 0xff
-	movwf LATF, A
-	bcf PIR6, 4
 	
-	call	    timer_setup
+	
+	call	    timer_setup	    ;setup timer
 	call         UART_Setup      ; setup UART
         call        LCD_Setup         ; setup LCD
         call        KeyPad_Setup   ; setup KeyPad
-
+	
+	;Defining variables stored in file registers
 	movlw 0x0
-	movwf 0x50
-	movwf 0x0D0 ;tracking number of eeprom digits read
+	movwf 0x50 ;for comparing W regiter values with 0/off
 	movwf 0x0C2 ;pinreset on/off
 	movwf 0x0C3 ;time to store new pin checker
 	movlw 0x1
-	movwf 0x51
+	movwf 0x51 ;for comparing W register values with 1/on
 	movlw 0x4 ;maximum digits in pin (4)
 	movwf 0x0B0 ;storing maximum 
-	movlw 0xFF
-	movwf 0x60
-	movwf 0x80
-	movlw 0x0A0
-	movwf FSR1
-	movlw 'C'
+	movlw 0x0A0 ;file register address where keypad inputs are stored
+	movwf FSR1 
+	movlw 'C' ;pin reset triggered when 'C' key pressed
 	movwf 0x0F0
-	movlw 0x3
-	movwf 0x0C0
-	movlw 0x2
-	movwf 0x0C1
+	movlw 0x3 ;when no keys are pressed, PinCheck.s returns 3 in W reg
+	movwf 0x0C0 ;for checking if no keys are pressed
+	movlw 0x2 ;when key is held down, PinCheck.s returns 2 in W reg
+	movwf 0x0C1 ;for checking if key is held down to avoid unwanted repeat inputs
 	
 	goto start
 	
 
 	
-start:	call	prompt	
+start:	call	prompt	;prompting user to enter pin
 	lfsr	0, myArray
 	movlw	low highword(pin)
 	movwf	TBLPTRU, A
@@ -167,8 +146,6 @@ DisplayAsterisk:
 	
 	
 incorrect_pin:
-	;movlw	0x0
-	;movwf	0x0C3
 	call LCD_Setup
 	lfsr	0, myArray
 	movlw	low highword(incorrect_message)
@@ -179,17 +156,7 @@ incorrect_pin:
 	movwf	TBLPTRL, A
 	movlw	9
 	movwf	counter, A
-	;movlw	'N'
-	;call	UART_Transmit_Byte
 	
-	;;movlw	myTable_l	; output message to LCD
-	;;addlw	0xff		; don't send the final carriage return to LCD
-	;;lfsr	2, myArray
-	;call	LCD_Send_Byte_D
-		
-	
-	;goto keypad
-	;return
 incorrect_loop:
 	tblrd*+
 	movff	TABLAT, POSTINC0
@@ -200,12 +167,10 @@ incorrect_loop:
 	lfsr	2,myArray
 	call	UART_Transmit_Message
 	
-	movlw	myIncorrectMessage
+	movlw	myIncorrectMessage ;output message to LCD
 	addlw	0xff		; don't send the final carriage return to LCD
 	lfsr	2, myArray
 	call	LCD_Write_Message
-	;movf	0x0C2,W
-	;cpfseq	0x51, A
 	movlw 0xff
 	call LCD_delay_ms
 	call LCD_delay_ms
@@ -251,7 +216,7 @@ correct_loop:
 	lfsr	2,myArray
 	call	UART_Transmit_Message
 	
-	movlw	myCorrectMessage
+	movlw	myCorrectMessage ;output message to LCD
 	addlw	0xff		; don't send the final carriage return to LCD
 	lfsr	2, myArray
 	call	LCD_Write_Message
@@ -288,13 +253,17 @@ prompt_loop:
 	lfsr	2,myArray
 	call	UART_Transmit_Message
 	
-	movlw	myPromptMessage
+	movlw	myPromptMessage ;output message to LCD
 	addlw	0xff		; don't send the final carriage return to LCD
 	lfsr	2, myArray
 	call	LCD_Write_Message
 	return
 
 pinreset:
+	movlw 0x0A0
+	movwf FSR1
+	movlw 0x4 ;maximum digits in pin (4)
+	movwf 0x0B0 ;storing maximum 
 	movlw 0x1
 	movwf 0x0C2
 	call LCD_Setup
@@ -380,49 +349,8 @@ new_pin_store:
 new_pin_store_process:
 	decfsz 0xB0
 	goto DisplayAsterisk
-	goto new_pin_write
+	goto ERASE_BLOCK
 
-new_pin_write:
-	;movlw 0x4
-	;movwf counter
-	;movf 0x0A4, W
-	;movwf pin
-	;movf 0x0A5, W
-	;movwf pin+1
-	;movf 0x0A6,W
-	;movwf pin+2
-	;movf 0x0A7,W
-	;movwf pin+3
-	;call        LCD_Setup
-	;goto setup
-	
-;	MOVLW 4 ; number of bytes in erase block
-;	MOVWF counter
-;	MOVLW BUFFER_ADDR_HIGH ; point to buffer
-;	MOVWF FSR0H
-;	MOVLW BUFFER_ADDR_LOW
-;	MOVWF FSR0L
-;	MOVLW CODE_ADDR_UPPER ; Load TBLPTR with the base
-;	MOVWF TBLPTRU ; address of the memory block
-;	MOVLW CODE_ADDR_HIGH
-;	MOVWF TBLPTRH
-;	MOVLW CODE_ADDR_LOW
-;	MOVWF TBLPTRL
-;READ_BLOCK:
-;	TBLRD*+ ; read into TABLAT, and inc
-;	MOVF TABLAT, W ; get data
-;	MOVWF POSTINC0 ; store data
-;	DECFSZ counter ; done?
-;	BRA READ_BLOCK ; repeat
-;MODIFY_WORD:
-;	MOVLW DATA_ADDR_HIGH ; point to buffer
-;	MOVWF FSR0H
-;	MOVLW DATA_ADDR_LOW
-;	MOVWF FSR0L
-;	MOVLW NEW_DATA_LOW ; update buffer word
-;	MOVWF POSTINC0
-;	MOVLW NEW_DATA_HIGH
-;	MOVWF INDF0
 ERASE_BLOCK:
 	movlw	low highword(pin)
 	movwf	TBLPTRU, A
@@ -474,13 +402,3 @@ PROGRAM_MEMORY:
 	
 	;goto	$		; goto current line in code
 
-	; a delay subroutine if you need one, times around loop in delay_count
-delay:	decfsz 0x60, F, A
-	bra delay2
-	return
-
-delay2:	movlw 0xFF
-	movwf 0x70
-	decfsz 0x70, F, A
-	goto $-1
-	bra delay
