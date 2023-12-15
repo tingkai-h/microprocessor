@@ -98,6 +98,7 @@ setup:  bcf CFGS ; point to Flash program memory
 
 	
 start:	call	prompt	;prompting user to enter pin
+	;setting up lfsr for correct pin retrieval
 	lfsr	0, myArray
 	movlw	low highword(pin)
 	movwf	TBLPTRU, A
@@ -106,25 +107,25 @@ start:	call	prompt	;prompting user to enter pin
 	movlw	low(pin)
 	movwf	TBLPTRL, A
 	movlw	4
-	movwf	counter, A
+	movwf	counter, A ;counter for number of digits in pin
 	
 PinEntry:	
-	call KeyPad_read 
-	call keypad
-	cpfseq 0x0C1
+	call KeyPad_read ;reading in user input
+	call keypad ;processing user input and determining which key is pressed
+	cpfseq 0x0C1 ;checking if 'C' has been pressed for reset request
 	goto EmptyCheck
 	goto pinreset
 	
 EmptyCheck:
-	cpfseq 0x0C0
-	goto PinProcess
-	bra PinEntry
+	cpfseq 0x0C0 
+	goto PinProcess 
+	bra PinEntry ;loop back if no pin has been pressed
 	
 PinProcess:
-	decfsz 0xB0
+	decfsz 0xB0 ;tracking number of digits entered
 	goto DisplayAsterisk
-	call pincheckstart
-	cpfseq 0x50
+	call pincheckstart ;if 4 keys pressed start checking process
+	cpfseq 0x50 ;pincheckstart returns 0 for incorrect pin and 1 for correct pin
 	goto correct_pin
 	goto incorrect_pin
 	
@@ -133,20 +134,17 @@ PinProcess:
 DisplayAsterisk:
 	movlw	'*'
 	call	UART_Transmit_Byte
-	
-	;movlw	myTable_l	; output message to LCD
-	;addlw	0xff		; don't send the final carriage return to LCD
-	;lfsr	2, myArray
 	call	LCD_Send_Byte_D
 	movf 0x0C3,W
-	cpfseq 0x51
+	cpfseq 0x51 ;differentiating between pin entry attempt and resetting pin entry
 	bra PinEntry
 	bra new_pin_store
 
 	
 	
 incorrect_pin:
-	call LCD_Setup
+	call LCD_Setup ;clear LCD display
+	;setting up lfsr for incorrect pin message retrieval
 	lfsr	0, myArray
 	movlw	low highword(incorrect_message)
 	movwf	TBLPTRU, A
@@ -154,48 +152,41 @@ incorrect_pin:
 	movwf	TBLPTRH
 	movlw	low(incorrect_message)
 	movwf	TBLPTRL, A
-	movlw	9
+	movlw	9 ;number of characters/bytes in message
 	movwf	counter, A
 	
 incorrect_loop:
+	;loop to copy message to data memory
 	tblrd*+
 	movff	TABLAT, POSTINC0
 	decfsz counter, A
 	bra incorrect_loop
-	
+	;transmit message via UART
 	movlw	myIncorrectMessage
 	lfsr	2,myArray
 	call	UART_Transmit_Message
-	
 	movlw	myIncorrectMessage ;output message to LCD
-	addlw	0xff		; don't send the final carriage return to LCD
+	addlw	0xff		;don't send the final carriage return to LCD
 	lfsr	2, myArray
 	call	LCD_Write_Message
 	movlw 0xff
 	call LCD_delay_ms
 	call LCD_delay_ms
-	call LCD_delay_ms
-	decfsz incorrect_counter
-	goto setup
-	call	    pwm_buzzer_setup
-	goto setup
+	call LCD_delay_ms ;delays to keep message on LCD display temporarily
+	decfsz incorrect_counter ;tracking number of consecutive incorrect entries
+	goto setup ;return to start
+	call	    pwm_buzzer_setup ;buzzer triggered after 3 failed attempts
+	goto setup ;return to start after buzzer turned on
 	
-	;movlw	0x0
-	;goto	pinreset_check
-	;bra PinEntry
-	
-	;goto keypad
-	;return
 	
 correct_pin:
-	;movlw	0x1
-	;movwf	0x0C3
-	movf	0x0C2,W
-	cpfseq	0x50
-	goto	pinreset_check
-	movlw	20
+	movf	0x0C2,W ;0x0C2 set to 1 after pin reset request
+	cpfseq	0x50 ;differentiating between standard correct entry and correct entry after reset request
+	goto	SetNewPin
+	movlw	20 
 	movwf	pwm_width, A ;sets correct pwm_width so servomotor turns
-	call	LCD_Setup
+	call	LCD_Setup ;clear LCD display
+	;setting up lfsr for correct pin message retrieval
 	lfsr	0, myArray
  	movlw	low highword(correct_message)
 	movwf	TBLPTRU, A
@@ -203,15 +194,16 @@ correct_pin:
 	movwf	TBLPTRH
 	movlw	low(correct_message)
 	movwf	TBLPTRL, A
-	movlw	7
+	movlw	7 ;number of characters/bytes in message
 	movwf	counter, A
 	
 correct_loop:
+	;loop to copy message to data memory
 	tblrd*+
 	movff	TABLAT, POSTINC0
 	decfsz counter, A
 	bra correct_loop
-	
+	;transmit message via UART
 	movlw	myCorrectMessage
 	lfsr	2,myArray
 	call	UART_Transmit_Message
@@ -224,15 +216,16 @@ correct_loop:
 	movlw 0xff
 	call LCD_delay_ms
 	call LCD_delay_ms
-	call LCD_delay_ms
+	call LCD_delay_ms ;delays to keep message on LCD display temporarily
 	movlw 0x3
-	movwf incorrect_counter, A
+	movwf incorrect_counter, A ;reset consecutive failed attempts tracker 
 	CLRF CCP4CON ;turn off buzzer
 	goto setup
 	
 
 prompt:
-	call LCD_Setup
+	call LCD_Setup ;clear LCD display
+	;setting up lfsr for prompt message retrieval
 	lfsr	0, myArray
 	movlw	low highword(prompt_message)
 	movwf	TBLPTRU, A
@@ -240,19 +233,19 @@ prompt:
 	movwf	TBLPTRH
 	movlw	low(prompt_message)
 	movwf	TBLPTRL, A
-	movlw	10
+	movlw	10 ;number of characters/bytes in message
 	movwf	counter, A
 	
 prompt_loop:
+	;loop to copy message to data memory
 	tblrd*+
 	movff	TABLAT, POSTINC0
 	decfsz counter, A
 	bra prompt_loop
-	
+	;transmit message via UART
 	movlw	myPromptMessage
 	lfsr	2,myArray
 	call	UART_Transmit_Message
-	
 	movlw	myPromptMessage ;output message to LCD
 	addlw	0xff		; don't send the final carriage return to LCD
 	lfsr	2, myArray
@@ -260,13 +253,14 @@ prompt_loop:
 	return
 
 pinreset:
-	movlw 0x0A0
+	movlw 0x0A0 ;file register address where keypad inputs are stored
 	movwf FSR1
 	movlw 0x4 ;maximum digits in pin (4)
 	movwf 0x0B0 ;storing maximum 
 	movlw 0x1
 	movwf 0x0C2
-	call LCD_Setup
+	call LCD_Setup ;clear LCD display
+	;setting up lfsr for prompt message retrieval
 	lfsr	0, myArray
 	movlw	low highword(old_pin_message)
 	movwf	TBLPTRU, A
@@ -274,24 +268,24 @@ pinreset:
 	movwf	TBLPTRH
 	movlw	low(old_pin_message)
 	movwf	TBLPTRL, A
-	movlw	8
+	movlw	8 ;number of characters/bytes in message
 	movwf	counter, A
 	
 pinreset_loop:
+	;loop to copy message to data memory
 	tblrd*+
 	movff	TABLAT, POSTINC0
 	decfsz counter, A
 	bra pinreset_loop
-	
+	;transmit message via UART
 	movlw	myOldPinMessage
 	lfsr	2,myArray
 	call	UART_Transmit_Message
-	
 	movlw	myOldPinMessage
 	addlw	0xff		; don't send the final carriage return to LCD
 	lfsr	2, myArray
 	call	LCD_Write_Message
-	
+	;setting up lfsr for correct pin retrieval
 	lfsr	0, myArray
 	movlw	low highword(pin)
 	movwf	TBLPTRU, A
@@ -299,19 +293,15 @@ pinreset_loop:
 	movwf	TBLPTRH
 	movlw	low(pin)
 	movwf	TBLPTRL, A
-	movlw	4
+	movlw	4 ;number of characters/bytes in message
 	movwf	counter, A
 	
 	call PinEntry
 
-pinreset_check:
-	;movf 0x0C3,W
-	cpfseq 0x50, A
-	goto SetNewPin
-	goto start
 	
 SetNewPin:
-	call LCD_Setup
+	call LCD_Setup ;clear LCD display
+	;setting up lfsr for new pin message retrieval
 	lfsr	0, myArray
 	movlw	low highword(new_pin_message)
 	movwf	TBLPTRU, A
@@ -319,39 +309,42 @@ SetNewPin:
 	movwf	TBLPTRH
 	movlw	low(new_pin_message)
 	movwf	TBLPTRL, A
-	movlw	8
+	movlw	8 ;number of characters/bytes in message
 	movwf	counter, A
 	
 new_pin_loop:
+	;loop to copy message to data memory
 	tblrd*+
 	movff TABLAT, POSTINC0
 	decfsz counter, A
 	bra new_pin_loop
+	;transmit message via UART
 	movlw myNewPinMessage
 	lfsr 2,myArray
 	call UART_Transmit_Message
-	movlw myNewPinMessage
+	movlw myNewPinMessage ;output message to LCD
 	addlw 0xff
 	lfsr	2, myArray
 	call	LCD_Write_Message
 	movlw 0x4
-	movwf 0x0B0
+	movwf 0x0B0 ;reset pin digit length tracker
 
 new_pin_store:
 	movlw 0x1
 	movwf 0x0C3
 	call KeyPad_read
 	call keypad
-	cpfseq 0x0C0
-	goto new_pin_store_process
-	bra new_pin_store
+	cpfseq 0x0C0 
+	goto new_pin_store_process ;if key pressed go to store process
+	bra new_pin_store ;loop back if no key pressed
 
 new_pin_store_process:
 	decfsz 0xB0
 	goto DisplayAsterisk
-	goto ERASE_BLOCK
+	goto ERASE_BLOCK ;overwrite pin in flash program memory once 4 digits have been entered
 
 ERASE_BLOCK:
+	;setting up lfsr for pin retrieval
 	movlw	low highword(pin)
 	movwf	TBLPTRU, A
 	movlw	high(pin)
@@ -370,11 +363,6 @@ ERASE_BLOCK:
 	BSF WR ; start erase (CPU stall) EECON1, W
 	BSF GIE ; re-enable interrupts INTCON, 
 	TBLRD*- ; dummy read decrement
-;	MOVLW BUFFER_ADDR_HIGH ; point to buffer
-;	MOVWF FSR0H
-;	MOVLW BUFFER_ADDR_LOW
-;	MOVWF FSR0L
-;	lfsr	0, new_pin
 	lfsr	0, 0x0A4
 WRITE_BUFFER_BACK:
 	MOVLW 4 ; number of bytes in holding register
@@ -399,6 +387,3 @@ PROGRAM_MEMORY:
 	BSF GIE ; re-enable interrupts INTCON, 
 	BCF WREN ; disable write to memory EECON1, 
 	goto setup
-	
-	;goto	$		; goto current line in code
-

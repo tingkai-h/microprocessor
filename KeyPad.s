@@ -3,9 +3,6 @@
 global  KeyPad_Setup, KeyPad_read
 
 psect	udata_acs   ; reserve data space in access ram
-;KeyPad_counter: ds    1	    ; reserve 1 byte for variable KeyPad_counter
-;KeyPad_input: ds    1
-;KeyPad_output: ds   1
 low_bits: ds	1
 high_bits: ds	1
 keyval: ds  1
@@ -16,31 +13,27 @@ KeyPad_Setup:
     bsf REPU
     movlb 0
     clrf LATE
-    clrf TRISD
     return
 
 KeyPad_read:
+    ;setting PORTE to input for rows and columns
     movlw 0x0F
     movwf TRISE
     movlw 0xFF
     movwf 0x20
-    call delay
+    call delay ;delays to allow time for switch between input/output
     movff PORTE, low_bits
     movf PORTE, W
     movlw 0xF0
     movwf TRISE
     movlw 0xFF
     movwf 0x20
-    call delay
+    call delay ;delays to allow time for switch between input/output
     movff PORTE, high_bits
     movf high_bits, W, A
     iorwf low_bits, W, A
     movwf keyval,A
-    movlw 0x0
-    movwf PORTD
-    call test_none
-    
-    movwf PORTD
+    call test_none ;start testing which key has been pressed -> returns ascii of correspoding key to w reg
     return
 
 delay: 
@@ -48,7 +41,7 @@ delay:
     bra delay2
     return
 
-delay2:
+delay2: ;nested delay
     movlw 0xFF
     movwf 0x30, A
 
