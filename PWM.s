@@ -51,8 +51,8 @@ overflow:
 	
 	movlw 200 ;moving (on_time+(200-on_time)) which is 200 to wreg 
 	cpfslt overflow_counter, A
-	clrf overflow_counter, A ;reset overflow_counter if overflow_counter < 200
-	return ;if overflow_counter > 200
+	clrf overflow_counter, A ;reset overflow_counter if overflow_counter > 200
+	return ;if overflow_counter < 200
 
 turn_pin_on:
 	bsf LATG, 0 ;set RG0 pin
